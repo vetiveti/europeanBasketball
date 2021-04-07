@@ -8,7 +8,6 @@ rm(list=ls())
 source('functions/BBL_functions.R')
 
 library(tidyverse)
-library(rjson)
 library(lubridate)
 
 load(file ="data/id_games2008.rda")
@@ -30,8 +29,9 @@ id_2018 <- id_games2018 %>% t %>%  as_tibble() %>%
     mutate_if(is.character,as.numeric)
 
 year <- 2018
-quarter <- 1
 game_nr <- 1
+quarter <- i
+
 url_pbp <- gsub(" ","",paste("http://live.easycredit-bbl.de/data",year,
                             "/bbl/", id_2018$home_id[game_nr],
                             "/", id_2018$game_id[game_nr],
@@ -43,13 +43,9 @@ url_info <- gsub(" ","",paste("http://live.easycredit-bbl.de/data",year,
                               "/",id_2018$game_id[game_nr],
                               "_INIT.JSN"))
 
-res <- httr::GET(url_pbp)
+json_pbp <- get_json(url_pbp)
 
-json <- res$content %>% 
-    rawToChar() %>%
-    jsonlite::fromJSON(simplifyVector = T)
-
-df <- json %>% 
+pbp <- json_pbp %>% 
     data.frame %>%
     as_tibble() %>% 
     rename(teamcode = actions.1,
@@ -68,67 +64,24 @@ df <- json %>%
            number_action = actions.14,
            timestamp = actions.15)
 
-df$nummer_aktion <- nrow(df):1
+pbp$nummer_aktion <- nrow(pbp):1
 
-df <- df %>% 
+pbp <- pbp %>% 
     mutate(spielzeit_sec = lubridate::ms(spielzeit), .keep="unused") %>% 
     relocate(teamcode,spielzeit_sec, everything()) %>% 
     arrange(nummer_aktion)
 
-df$spielzeit_sec <- as.numeric(df$spielzeit_sec)
+pbp$spielzeit_sec <- as.numeric(pbp$spielzeit_sec)
 
+# Which teams did play?
+json_info <- get_json(url_info)
 
-json_file <- url_info
-json_test <- rjson::fromJSON(paste(readLines(json_file), collapse=""))
-json_test <- rjson::fromJSON(file=json_file)
-team_home <- json_test$teamroster[[1]]$TeamName
-team_away <- json_test$teamroster[[2]]$TeamName
-
-res <- httr::GET(url_info)
-
-json <- res$content %>% 
-    rawToChar() %>%
-    jsonlite::fromJSON(simplifyVector = T)
-
-teams <- json$teamroster
+teams <- json_info$teamroster
 team_h <- teams$TeamName[1]
 team_a <- teams$TeamName[2]
-    
-df1$team <- 0
-df1$contrary_team <- 0
-n <- nrow(df1)
-index <- 1
-while(index < n){
-    if(df1$X1[index]=="A"){
-        df1$team[index] <- team_home
-        df1$contrary_team[index] <- team_away
-        
-    }
-    if(df1$X1[index]=="B"){
-        df1$team[index] <- team_away
-        df1$contrary_team[index] <- team_home
-    }
-    
-    
-    index <- index +1
-}
 
-test <- df1
-
-test$game_id <- id_2018$game_id[1]
-test$home_id <- id_2018$home_id[1]
-
-test$X1 <- NULL
-test$X14 <- NULL
-test$Viertel <- quarter
 # Roster (who played?)
-res <- httr::GET(url_info)
-
-json <- res$content %>% 
-    rawToChar() %>%
-    jsonlite::fromJSON(simplifyVector = T)
-
-roster <- json$roster %>% 
+roster <- json_info$roster %>% 
     data.frame %>%
     as_tibble() %>%
     type_convert() %>% 
@@ -140,28 +93,31 @@ roster <- json$roster %>%
 roster_h <- filter(roster, TC =="A")
 roster_a <- filter(roster, TC =="B")
 
-df_merge <- merge(df1,kader,
+roster_merge <- roster %>% 
+    select(TC, Nr, Player, Club)
+
+# Merge Roster and PbP to obtain player who did perform the action:
+pbp_merge <- merge(pbp,roster_merge,
                 by.x = c("teamcode","sn_Spieler_1"),
-                by.y = c("team", "nr"),
+                by.y = c("TC", "Nr"),
                 all.x = TRUE) %>% 
     arrange(nummer_aktion)
 
-df <- merge(df_merge,kader,
+# Do that a second time because of assists
+pbp_merge <- merge(pbp_merge,roster_merge,
             by.x = c("teamcode","sn_Spieler_2"),
-            by.y = c("team", "nr"),
+            by.y = c("TC", "Nr"),
             all.x = TRUE) %>%
     arrange(nummer_aktion)
 
-datei_name <- paste(id_2008$game_id[1],team_home,team_away,"_", quarter,".csv")
-datei_name <- gsub(" ","", datei_name)
-print(datei_name)
-#write.table(df, datei_name)
+# save/return the data frame
+file_name <- paste(id_2018$game_id[1],"_",team_h,"_",team_a,"_", quarter,".rda")
+file_name <- gsub(" ","", file_name)
+print(file_name)
 
 
-source('~/Uni Tübingen/0. Masterarbeit/7. R/Masterarbeit/functions/BBL_functions.R')
-library(tidyverse)
-year = 2018:2018
-
-
-debugonce(BBL_game_ids)
-id_year <- BBL_game_ids(year)
+source('functions/BBL_functions.R')
+year <- 2018
+game_nr <- 1
+game_id <- id_2018[game_nr,]
+pbp_g1 <- get_pbp(year,game_id)
