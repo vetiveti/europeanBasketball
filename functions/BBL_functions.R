@@ -1,6 +1,6 @@
-#' #### get BBL game ID's ####
-#' start R Selenium
+#' get BBL game ID's ####
 BBL_game_ids <- function(year){
+    #' start R Selenium
     remDr <- RSelenium::rsDriver(verbose = T,
                                  remoteServerAddr = "localhost",
                                  port = 4444L,
@@ -92,7 +92,7 @@ valid_url <- function(url_in,t=2){
     ifelse(is.null(check),1,0)
 }
 
-#' #### get BBL PbP ####
+#' get BBL PbP ####
 get_pbp <- function(year, game_id){
     #' Get play by play data for a specific game
     # Get Team info's
@@ -126,6 +126,7 @@ get_pbp <- function(year, game_id){
     
     # get PbP for each quarter played
     # check how many quarters are played:
+    urls <- vector()
     for (i in 1:12) {
         urls[i] <- gsub(" ","",paste("http://live.easycredit-bbl.de/data",year,
                                      "/bbl/",game_id$home_id,
