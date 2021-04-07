@@ -4,108 +4,12 @@ cat("\014")
 # remove Environment
 rm(list=ls())
 
-setwd("~/Uni Tübingen/0. Masterarbeit/7. R/Masterarbeit")
-source('~/Uni Tübingen/0. Masterarbeit/7. R/Masterarbeit/functions/download_and_prep_functions.R')
-source('~/Uni Tübingen/0. Masterarbeit/7. R/Masterarbeit/functions/BBL_functions.R')
+# source functions to use
+source('functions/BBL_functions.R')
 
-library(RCurl)
-library(XML)
-library(stringr)
-library(RSelenium)
 library(tidyverse)
-library(rJava)
-library(rvest)
-library(glue)
 library(rjson)
 library(lubridate)
-
-remDr <- rsDriver(verbose = T,
-                  remoteServerAddr = "localhost",
-                  port = 4444L,
-                  browser=c("firefox"))
-
-rm <- remDr$client
-rm$getStatus()
-
-rm$navigate("https://www.easycredit-bbl.de/de/saison/spielplan/alle-spiele/") 
-
-base <- "//select[@id='saison']/option[@value="
-year = 2008:2018
-
-c <- "//select[@id='saison']/option[@value='2017']"
-year_id <- NULL
-for(i in 1:length(year)) {
-year_id[i] <- glue('{base}', "\'",
-          year[i],"\']") %>% as.character()
-}
-
-for (i in 1:length(year_id)) {
-####
-    option_season <- rm$findElement(using = 'xpath', year_id[i])
-    option_season$clickElement()
-    
-    option_contest <- rm$findElement(using = 'xpath', "//select[@id='wettbewerb']/option[@value='1']")
-    option_contest$clickElement()
-    
-    button_filter <- rm$findElement(using = 'xpath', "//input[@class = 'btn'][@type = 'submit'][@value = 'Filter übernehmen']")
-    button_filter$sendKeysToElement(list("R Cran", key = "enter"))
-    Sys.sleep(5)
-    
-    
-    
-    page <- unlist(rm$getPageSource())
-    tpage <- htmlParse(page)
-    #games <- try(xpathSApply(tpage, "//a[@class='icon boxscore']", xmlAttrs))[3,]
-    #
-    
-    page <- page %>%
-        readr::read_lines() %>%
-        str_replace_all("<!--|-->", "") %>%
-        str_trim() %>%
-        stringi::stri_trans_general("Latin-ASCII") %>%
-        str_c(collapse = "") %>%
-        xml2::read_html()
-    
-    xml_tables <- page %>%
-        rvest::html_nodes(xpath = "//a[@class= 'icon boxscore']")
-    games <- xml_tables %>%
-        html_attr("href")
-    
-    identifiers <- c()
-    for(index in 1:length(games)){
-        page_game <- RCurl::getURL(paste0("https://www.easycredit-bbl.de", games[index]))
-        tpage <- htmlParse(page_game)
-        game_id <- str_extract(str_extract(page_game,"bekoGameId = '[0-9]{1,8}"), "[0-9]{1,8}")
-        home_id <- str_extract(str_extract(page_game,"bekoHomeTeamId = '[0-9]{1,8}"), "[0-9]{1,8}")
-        identifiers <- cbind(identifiers, c(game_id, home_id))
-    }
-    assign(paste0("identifiers_",i,sep =""),identifiers)    
-}
-
-id_games2008 <- identifiers1_
-id_games2009 <- identifiers2_
-id_games2010 <- identifiers3_
-id_games2011 <- identifiers4_
-id_games2012 <- identifiers5_
-id_games2013 <- identifiers6_
-id_games2014 <- identifiers7_
-id_games2015 <- identifiers8_
-id_games2016 <- identifiers9_
-id_games2017 <- identifiers10_
-id_games2018 <- identifiers11_
-
-save(id_games2008, file ="data/id_games2008.rda")
-save(id_games2009, file ="data/id_games2009.rda")
-save(id_games2010, file ="data/id_games2010.rda")
-save(id_games2011, file ="data/id_games2011.rda")
-save(id_games2012, file ="data/id_games2012.rda")
-save(id_games2013, file ="data/id_games2013.rda")
-save(id_games2014, file ="data/id_games2014.rda")
-save(id_games2015, file ="data/id_games2015.rda")
-save(id_games2016, file ="data/id_games2016.rda")
-save(id_games2017, file ="data/id_games2017.rda")
-save(id_games2018, file ="data/id_games2018.rda")
-
 
 load(file ="data/id_games2008.rda")
 load(file ="data/id_games2009.rda")
@@ -120,62 +24,76 @@ load(file ="data/id_games2017.rda")
 load(file ="data/id_games2018.rda")
 
 #' Get play by play data for a specific game
-
-id_2008 <- id_games2008 %>% t %>%  as_tibble() %>% 
-    rename(game_id = V1,
-           home_id = V2) %>% 
-    mutate_if(is.character,as.numeric)
-
 id_2018 <- id_games2018 %>% t %>%  as_tibble() %>% 
     rename(game_id = V1,
            home_id = V2) %>% 
     mutate_if(is.character,as.numeric)
+
 year <- 2018
 quarter <- 1
-link_4 <- paste("http://live.easycredit-bbl.de/data",year,"/bbl/",id_2018$home_id[1],"/",id_2018$game_id[1],"Q",quarter,".JSN")
-link_4 <- gsub(" ", "", link_4)
+game_nr <- 1
+url_pbp <- gsub(" ","",paste("http://live.easycredit-bbl.de/data",year,
+                            "/bbl/", id_2018$home_id[game_nr],
+                            "/", id_2018$game_id[game_nr],
+                            "Q", quarter,
+                            ".JSN"))
 
-info_link <- paste("http://live.easycredit-bbl.de/data",year,"/bbl/",id_2018$home_id[1],"/",id_2018$game_id[1],"_INIT.JSN")
-info_link <- gsub(" ","", info_link)
+url_info <- gsub(" ","",paste("http://live.easycredit-bbl.de/data",year,
+                              "/bbl/",id_2018$home_id[game_nr],
+                              "/",id_2018$game_id[game_nr],
+                              "_INIT.JSN"))
 
-json_file1 <- link_4
-json_data1 <- fromJSON(paste(readLines(json_file1), collapse=""))
-json_data1 <- fromJSON(file=json_file1)
+res <- httr::GET(url_pbp)
 
+json <- res$content %>% 
+    rawToChar() %>%
+    jsonlite::fromJSON(simplifyVector = T)
 
-x1 <- length(json_data1$actions)
-df1 <- data.frame(matrix(unlist(json_data1), nrow=x1, byrow=T)) %>% 
-    rename(teamcode = X1,
-           spielzeit = X2,
-           sn_Spieler_1 = X3,
-           sn_Spieler_2 = X4,
-           aktion = X5,
-           zusatzinfo_1 = X6,
-           zusatzinfo_2 = X7,
-           zusatzinfo_3 = X8,
-           resultat = X9,
-           spielstand_A = X10,
-           spielstand_B = X11,
-           x_val = X12,
-           y_val = X13,
-           number_action = X14,
-           timestamp = X15)
-df1$nummer_aktion <- nrow(df1):1
-df1 <- df1 %>% 
-    mutate(spielzeit_sec = ms(spielzeit), .keep="unused") %>% 
+df <- json %>% 
+    data.frame %>%
+    as_tibble() %>% 
+    rename(teamcode = actions.1,
+           spielzeit = actions.2,
+           sn_Spieler_1 = actions.3,
+           sn_Spieler_2 = actions.4,
+           aktion = actions.5,
+           zusatzinfo_1 = actions.6,
+           zusatzinfo_2 = actions.7,
+           zusatzinfo_3 = actions.8,
+           resultat = actions.9,
+           spielstand_A = actions.10,
+           spielstand_B = actions.11,
+           x_val = actions.12,
+           y_val = actions.13,
+           number_action = actions.14,
+           timestamp = actions.15)
+
+df$nummer_aktion <- nrow(df):1
+
+df <- df %>% 
+    mutate(spielzeit_sec = lubridate::ms(spielzeit), .keep="unused") %>% 
     relocate(teamcode,spielzeit_sec, everything()) %>% 
     arrange(nummer_aktion)
 
+df$spielzeit_sec <- as.numeric(df$spielzeit_sec)
 
-df1$spielzeit_sec <- as.numeric(df1$spielzeit_sec)
 
-
-json_file <- info_link
-json_test <- fromJSON(paste(readLines(json_file), collapse=""))
-json_test <- fromJSON(file=json_file)
+json_file <- url_info
+json_test <- rjson::fromJSON(paste(readLines(json_file), collapse=""))
+json_test <- rjson::fromJSON(file=json_file)
 team_home <- json_test$teamroster[[1]]$TeamName
 team_away <- json_test$teamroster[[2]]$TeamName
 
+res <- httr::GET(url_info)
+
+json <- res$content %>% 
+    rawToChar() %>%
+    jsonlite::fromJSON(simplifyVector = T)
+
+teams <- json$teamroster
+team_h <- teams$TeamName[1]
+team_a <- teams$TeamName[2]
+    
 df1$team <- 0
 df1$contrary_team <- 0
 n <- nrow(df1)
@@ -203,23 +121,24 @@ test$home_id <- id_2018$home_id[1]
 test$X1 <- NULL
 test$X14 <- NULL
 test$Viertel <- quarter
+# Roster (who played?)
+res <- httr::GET(url_info)
 
-json <- fromJSON(paste(readLines(info_link), collapse=""))
-team_a <- json$teamroster[[1]]$TeamName
-team_b <- json$teamroster[[2]]$TeamName
-kader <- data.frame(matrix(unlist(json$roster), nrow=length(json$roster), byrow=T)) %>% 
-    mutate_if(is.numeric,as.numeric)
-colnames(kader) <- c("team", "nr", "id","name", "first_name", "status", "position","age", "club","height")
-kader <- kader %>% 
-    mutate_at(c("nr","id","age","height"),as.numeric) %>% 
-    mutate(spieler = paste(first_name, name, sep=", ")) %>% 
-    mutate(club = if_else(team == "A",team_a,team_b)) %>% 
-    select(c(-name,-first_name,-status))
+json <- res$content %>% 
+    rawToChar() %>%
+    jsonlite::fromJSON(simplifyVector = T)
 
+roster <- json$roster %>% 
+    data.frame %>%
+    as_tibble() %>%
+    type_convert() %>% 
+    mutate(Player = paste(FirstName, Name, sep=", "), .keep = "unused") %>%
+    mutate(Club = if_else(TC == "A",team_h,team_a)) %>% 
+    mutate(Pos = Posshort, .keep ="unused") %>% 
+    relocate(Player, Pos, .before = Is)
 
-
-kader_home <- dplyr::filter(kader, team == "A")
-kader_away <- dplyr::filter(kader, team == "B")
+roster_h <- filter(roster, TC =="A")
+roster_a <- filter(roster, TC =="B")
 
 df_merge <- merge(df1,kader,
                 by.x = c("teamcode","sn_Spieler_1"),
