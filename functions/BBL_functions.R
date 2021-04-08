@@ -108,6 +108,9 @@ get_pbp <- function(year, game_id){
     team_h <- teams$TeamName[1]
     team_a <- teams$TeamName[2]
     
+    assign('home_team', team_h, envir =.GlobalEnv)
+    assign('away_team', team_a, envir =.GlobalEnv)
+    
     # Roster (who played?)
     roster <- json_info$roster %>% 
         data.frame %>%
@@ -199,6 +202,10 @@ get_pbp <- function(year, game_id){
                Club_2 = Club.y,
                .keep = "unused") %>% 
         suppressMessages(type_convert())
+    
+    pbp_merge <- pbp_merge %>% 
+        mutate(club_1 = case_when(teamcode=="A" ~team_h,
+                                  teamcode=="B" ~team_a))
     
     return(pbp_merge)
 }
