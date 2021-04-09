@@ -183,7 +183,8 @@ get_boxscore_team <- function(pbp,team_h,team_a){
                                tov = tov,
                                blk = blk,
                                pf = pf,
-                               pfd = pfd)
+                               pfd = pfd,
+                               pts = p3m * 3 + p2m * 2+ ftm)
     
     ## Opponent stats:
     team <- team_a
@@ -223,7 +224,8 @@ get_boxscore_team <- function(pbp,team_h,team_a){
                    opp_tov = tov,
                    opp_blk = blk,
                    opp_pf = pf,
-                   opp_pfd = pfd)
+                   opp_pfd = pfd,
+                   opp_pts = p3m * 3 + p2m * 2 + ftm)
     
     return(boxscore_team_xy)
 }
@@ -355,6 +357,7 @@ get_boxscore_player <- function(pbp,player){
                                tov = tov,
                                blk = blk,
                                pf = pf,
-                               pfd = pfd)
+                               pfd = pfd,
+                               pts = p3m * 3 + p2m * 2 + ftm)
     return(boxscore_player_xy)
 }
