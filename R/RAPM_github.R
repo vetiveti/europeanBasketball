@@ -122,3 +122,4 @@ rapm <- left_join(o_rapm_frame, d_rapm_frame, by = "player_id") %>%
 
 kable(rapm[1:5, ] %>% 
           mutate(across(where(is.numeric), function(x) round(x, 1))), align = "c") 
+und nu
