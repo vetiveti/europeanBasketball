@@ -120,6 +120,8 @@ get_pbp <- function(year, game_id){
         mutate(Pos = Posshort, .keep ="unused") %>% 
         relocate(Player, Pos, .before = Is)
     
+    assign('roster',roster, envir=.GlobalEnv)
+    
     roster_h <- filter(roster, TC =="A")
     roster_a <- filter(roster, TC =="B")
     

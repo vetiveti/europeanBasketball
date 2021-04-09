@@ -1,4 +1,4 @@
-#### functions for player actions in pbp data
+#### functions for team actions in pbp data
 # 3 pointers
 get_p3a <- function(pbp, team){
     set_team <- team
@@ -94,8 +94,11 @@ get_drb <- function(pbp, team){
 # Turnover
 get_tov  <- function(pbp, team){
     set_team <- team
-    tov <- nrow(filter(pbp, aktion=="TO" | aktion=="TTO",
+    tov_1 <- nrow(filter(pbp, aktion=="TO" | aktion=="TTO",
                        club_1==set_team))
+    tov_2 <- nrow(filter(pbp, (aktion=="FOUL" & zusatzinfo_1=="O"),
+                club_1==set_team))
+    tov <- tov_1 + tov_2
     return(tov)
 }
 # team turnover
@@ -132,6 +135,15 @@ get_min <- function(pbp, team){
     min <- max(pbp$spielzeit_sec) * max(pbp$quarter)
     return(min)
 }
+# assists
+get_ast <- function(pbp, team){
+    ast <- nrow(filter(pbp, sn_Spieler_2 !="",
+                       aktion != "SUBST",
+                       aktion != "JB",
+                       aktion != "FT",
+                       Club_2 ==team))
+    return(ast)
+}
 
 get_boxscore_team <- function(pbp,team_h,team_a){
     team <- team_h
@@ -143,17 +155,12 @@ get_boxscore_team <- function(pbp,team_h,team_a){
     p3m <- get_p3m(pbp, team)
     fta <- get_fta(pbp, team)
     ftm <- get_ftm(pbp, team)
-    # zusammen = total rebounds
-    #reb <- get_reb(pbp, team)
-    #rb_team <- get_rb_team(pbp, team)
-    # oder alleine
-    trb <- get_trb(pbp, team)
-    # 
+    rb_team <- get_rb_team(pbp, team)
     orb <- get_orb(pbp, team)
     drb <- get_drb(pbp, team)
+    trb <- get_trb(pbp, team)
+    ast <- get_ast(pbp, team)
     stl <- get_stl(pbp, team)
-    # turnover stimmen noch nicht... 
-    # es fehlen welche.. wo sind die hin?
     tov <- get_tov(pbp, team)
     blk <- get_blk(pbp, team)
     pf <- get_pf(pbp, team)
@@ -167,9 +174,11 @@ get_boxscore_team <- function(pbp,team_h,team_a){
                                p3m = p3m,
                                fta = fta,
                                ftm = ftm,
-                               trb = trb,
                                orb = orb,
                                drb = drb,
+                               rb_team = rb_team,
+                               trb = trb,
+                               ast = ast,
                                stl = stl,
                                tov = tov,
                                blk = blk,
@@ -186,21 +195,16 @@ get_boxscore_team <- function(pbp,team_h,team_a){
     p3m <- get_p3m(pbp, team)
     fta <- get_fta(pbp, team)
     ftm <- get_ftm(pbp, team)
-    # zusammen = total rebounds
-    #reb <- get_reb(pbp, team)
-    #rb_team <- get_rb_team(pbp, team)
-    # oder alleine
-    trb <- get_trb(pbp, team)
-    # 
     orb <- get_orb(pbp, team)
     drb <- get_drb(pbp, team)
+    rb_team <- get_rb_team(pbp, team)
+    trb <- get_trb(pbp, team)
     stl <- get_stl(pbp, team)
-    # turnover stimmen noch nicht... 
-    # es fehlen welche.. wo sind die hin?
     tov <- get_tov(pbp, team)
     blk <- get_blk(pbp, team)
     pf <- get_pf(pbp, team)
     pfd <- get_pfd(pbp, team)
+    ast <- get_ast(pbp, team)
     
     boxscore_team_xy <- boxscore_team_xy %>% 
         add_column(opp_min = min,
@@ -210,9 +214,11 @@ get_boxscore_team <- function(pbp,team_h,team_a){
                    opp_p3m = p3m,
                    opp_fta = fta,
                    opp_ftm = ftm,
-                   opp_trb = trb,
                    opp_orb = orb,
                    opp_drb = drb,
+                   opp_rb_team = rb_team,
+                   opp_trb = trb,
+                   opp_ast = ast,
                    opp_stl = stl,
                    opp_tov = tov,
                    opp_blk = blk,
@@ -220,4 +226,135 @@ get_boxscore_team <- function(pbp,team_h,team_a){
                    opp_pfd = pfd)
     
     return(boxscore_team_xy)
+}
+
+###############################################################################
+################################################################################
+#### functions for player actions in pbp data
+# 3 pointers
+get_p3a_p <- function(pbp, player){
+    p3a <- nrow(filter(pbp, aktion=="P3", Player_1==player))
+    return(p3a)
+}
+get_p3m_p <- function(pbp, player){
+    p3m <- nrow(filter(pbp, aktion=="P3",
+                       Player_1==player,
+                       resultat=="+"))
+    return(p3m)
+}
+# 2 pointers
+get_p2a_p <- function(pbp, player){
+    p2a <- nrow(filter(pbp, aktion=="P2", Player_1==player))
+    return(p2a)
+}
+get_p2m_p <- function(pbp, player){
+    p2m <- nrow(filter(pbp, aktion=="P2",
+                       Player_1==player,
+                       resultat=="+"))
+    return(p2m)
+}
+# free throws
+get_fta_p <- function(pbp, player){
+    fta <- nrow(filter(pbp, aktion=="FT",
+                       Player_1==player))
+    return(fta)
+}
+get_ftm_p <- function(pbp, player){
+    ftm <- nrow(filter(pbp, aktion=="FT",
+                       Player_1==player,
+                       resultat=="+"))
+    return(ftm)
+}
+# Fouls
+get_pf_p <- function(pbp, player){
+    pf <- nrow(filter(pbp, aktion=="FOUL",
+                      Player_1==player))
+    return(pf)
+}
+get_pfd_p <- function(pbp, player){
+    pfd <- nrow(filter(pbp, aktion=="RFOUL",
+                       Player_1==player))
+    return(pfd)
+}
+# total rebounds by player
+get_trb_p <- function(pbp, player){
+    trb <- nrow(filter(pbp, aktion=="REB",
+                       Player_1==player))
+    return(trb)
+}
+# offensive rebounds
+get_orb_p <- function(pbp, player){
+    orb <- nrow(filter(pbp, aktion=="REB",
+                       Player_1==player,
+                       zusatzinfo_1 =="O"))
+    return(orb)
+}
+# defensive rebounds
+get_drb_p <- function(pbp, player){
+    drb <- nrow(filter(pbp, aktion=="REB",
+                       Player_1==player,
+                       zusatzinfo_1 =="D"))
+    return(drb)
+}
+# Turnover
+get_tov_p  <- function(pbp, player){
+    tov <- nrow(filter(pbp, aktion=="TO" | (aktion=="FOUL" & zusatzinfo_1=="O"),
+                       Player_1==player))
+    return(tov)
+}
+# Steals
+get_stl_p <- function(pbp, player){
+    stl <- nrow(filter(pbp, aktion=="ST",
+                       Player_1==player))
+    return(stl)
+}
+# blocks
+get_blk_p <- function(pbp, player){
+    blk <- nrow(filter(pbp, aktion=="BS",
+                       Player_1==player))
+    return(blk)
+}
+# assists
+get_ast_p <- function(pbp, player){
+    ast <- nrow(filter(pbp, Player_2==player,
+                       aktion != "SUBST",
+                       aktion != "FT",
+                       aktion != "JB"))
+    return(ast)
+}
+    
+get_boxscore_player <- function(pbp,player){
+    p2a <- get_p2a_p(pbp, player)
+    p2m <- get_p2m_p(pbp, player)
+    p3a <- get_p3a_p(pbp, player)
+    p3m <- get_p3m_p(pbp, player)
+    fta <- get_fta_p(pbp, player)
+    ftm <- get_ftm_p(pbp, player)
+    trb <- get_trb_p(pbp, player)
+    orb <- get_orb_p(pbp, player)
+    drb <- get_drb_p(pbp, player)
+    stl <- get_stl_p(pbp, player)
+    tov <- get_tov_p(pbp, player)
+    blk <- get_blk_p(pbp, player)
+    pf <- get_pf_p(pbp, player)
+    pfd <- get_pfd_p(pbp, player)
+    ast <- get_ast_p(pbp, player)
+    
+    boxscore_player_xy <- tibble(stats = player,
+                               p2a = p2a,
+                               p2m = p2m,
+                               p3a = p3a,
+                               p3m = p3m,
+                               fta = fta,
+                               ftm = ftm,
+                               orb = orb,
+                               drb = drb,
+                               trb = trb,
+                               ast = ast,
+                               stl = stl,
+                               tov = tov,
+                               blk = blk,
+                               pf = pf,
+                               pfd = pfd)
+    return(boxscore_player_xy)
 }
