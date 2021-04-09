@@ -121,9 +121,4 @@ rapm <- left_join(o_rapm_frame, d_rapm_frame, by = "player_id") %>%
     arrange(-RAPM)
 
 kable(rapm[1:5, ] %>% 
-<<<<<<< HEAD
           mutate(across(where(is.numeric), function(x) round(x, 1))), align = "c") 
-=======
-          mutate(across(where(is.numeric), function(x) round(x, 1))), align = "c") 
-und nu
->>>>>>> c32c9ee2797fb11ff54e920a5efee8e231de521a
