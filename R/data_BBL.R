@@ -10,6 +10,8 @@ source('functions/pbp_actions.R')
 
 library(tidyverse)
 
+pat <- list.files(pattern = "id_games", path = 'data/')
+pat <- paste0("data/",pat, sep= "")
 
 load(file ="data/id_games2008.rda")
 load(file ="data/id_games2009.rda")
@@ -30,10 +32,34 @@ id_2018 <- id_games2018 %>% t %>%  as_tibble() %>%
     mutate_if(is.character,as.numeric)
 
 year <- 2018
-game_nr <- 1
-game_id <- id_2018[game_nr,]
-pbp <- get_pbp(year,game_id)
+pbp_2018<- data.frame()
+for(i in 1:1){
+    game_nr <- i
+    game_id <- id_2018[game_nr,]
+    pbp <- get_pbp(year,game_id)
+    pbp$game_nr <- i
+    
+    pbp_2018 <- bind_rows(pbp_2018,pbp)
+}
 
+for (i in 1:22) {
+    a[i] <- "Error in file"
+}
+b <- as_data_frame(a)
+
+safer_results <- possibly(get_pbp, otherwise = as_data_frame("Error finding file"))
+
+results <- data_frame()
+for (i in 1:nrow(id_2018)) {
+    all_results <- safer_results(year,id_2018[i,])
+    all_results$game_nr <- i
+    results<- bind_rows(results,all_results)
+    
+}
+
+
+
+    
 # compute boxscore for teams:
 team_h <- home_team
 team_a <- away_team
@@ -46,6 +72,7 @@ for(i in 1:12) {
     bx_player <- get_boxscore_player(pbp,player)
     bx_players <- bind_rows(bx_players, bx_player)
 }
+
 #' assists are tricky!
 #' in the NBA assists are not granted for pass before FT in the FIBA world the count as assists!
 #' I compute the NBA style assists as I work with methods which are developed for the NBA
@@ -102,3 +129,25 @@ sum(df$starter_1)
 sum(df$starter_2)
 sum(df$starter_3)
 sum(df$starter_4)
+
+con <- "google.com"
+check <- suppressWarnings(try(open.connection(con,open="rt",timeout=t),silent=T)[1])
+suppressWarnings(try(close.connection(con),silent=T))
+ifelse(is.null(check),1,0)
+
+
+game_id <- id_2018[68,]
+url_info <- gsub(" ","",paste("http://live.easycredit-bbl.de/data",year,
+                              "/bbl/",game_id$home_id,
+                              "/",game_id$game_id,
+                              "_INIT.JSN"))
+
+# Which teams did play?
+json_info <- get_json(url_info)
+
+teams <- json_info$teamroster
+team_h <- teams$TeamName[1]
+team_a <- teams$TeamName[2]
+
+assign('home_team', team_h, envir =.GlobalEnv)
+assign('away_team', team_a, envir =.GlobalEnv)
