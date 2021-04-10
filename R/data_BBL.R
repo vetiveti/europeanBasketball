@@ -102,4 +102,3 @@ sum(df$starter_1)
 sum(df$starter_2)
 sum(df$starter_3)
 sum(df$starter_4)
-# was jetzt?
