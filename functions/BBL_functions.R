@@ -24,7 +24,7 @@ BBL_game_ids <- function(year){
         option_contest <- rm$findElement(using = 'xpath', "//select[@id='wettbewerb']/option[@value='1']")
         option_contest$clickElement()
         
-        button_filter <- rm$findElement(using = 'xpath', "//input[@class = 'btn'][@type = 'submit'][@value = 'Filter ?bernehmen']")
+        button_filter <- rm$findElement(using = 'xpath', "//input[@class = 'btn'][@type = 'submit'][@value = 'Filter übernehmen']")
         button_filter$sendKeysToElement(list("R Cran", key = "enter"))
         Sys.sleep(5)
         
@@ -54,6 +54,11 @@ BBL_game_ids <- function(year){
             home_id <- str_extract(str_extract(page_game,"bekoHomeTeamId = '[0-9]{1,8}"), "[0-9]{1,8}")
             identifiers <- cbind(identifiers, c(game_id, home_id))
         }
+        
+        identifiers<- identifiers %>% t %>%  as_tibble() %>% 
+            rename(game_id = V1,
+                   home_id = V2) %>% 
+            mutate_if(is.character,as.numeric)
         
         assign(paste0("identifiers_",year[i],sep =""),identifiers,envir =.GlobalEnv) 
     }
@@ -157,7 +162,9 @@ get_pbp <- function(year, game_id){
         
         pbp_quarter <- json_pbp %>% 
             data.frame %>%
-            as_tibble() %>% 
+            as_tibble()
+        if (year > 2013) {
+        pbp_quarter <- pbp_quarter %>% 
             rename(teamcode = actions.1,
                    spielzeit = actions.2,
                    sn_Spieler_1 = actions.3,
@@ -171,8 +178,28 @@ get_pbp <- function(year, game_id){
                    spielstand_B = actions.11,
                    x_val = actions.12,
                    y_val = actions.13,
-                   number_action = actions.14,
-                   timestamp = actions.15)
+                   number_action = actions.14)
+        
+        if (year > 2016){
+            pbp_quarter <- pbp_quarter %>% 
+            rename(timestamp = actions.15)
+        }
+        } else{
+            pbp_quarter <- pbp_quarter %>% 
+                rename(teamcode = actions.1,
+                       spielzeit = actions.2,
+                       sn_Spieler_1 = actions.3,
+                       sn_Spieler_2 = actions.4,
+                       aktion = actions.5,
+                       zusatzinfo_1 = actions.6,
+                       zusatzinfo_3 = actions.7,
+                       resultat = actions.8,
+                       spielstand_A = actions.9,
+                       spielstand_B = actions.10,
+                       x_val = actions.11,
+                       y_val = actions.12,
+                       number_action = actions.13)
+        }       
         
         pbp_quarter$nummer_aktion <- nrow(pbp_quarter):1
         pbp_quarter$quarter <- quarter

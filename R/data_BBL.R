@@ -10,26 +10,27 @@ source('functions/pbp_actions.R')
 
 library(tidyverse)
 
-pat <- list.files(pattern = "id_games", path = 'data/')
-pat <- paste0("data/",pat, sep= "")
 
-load(file ="data/id_games2008.rda")
-load(file ="data/id_games2009.rda")
-load(file ="data/id_games2010.rda")
-load(file ="data/id_games2011.rda")
-load(file ="data/id_games2012.rda")
-load(file ="data/id_games2013.rda")
-load(file ="data/id_games2014.rda")
-load(file ="data/id_games2015.rda")
-load(file ="data/id_games2016.rda")
-load(file ="data/id_games2017.rda")
-load(file ="data/id_games2018.rda")
+#a <- BBL_game_ids(year = 2008:2018)
+# save_rds <- ls(pattern = "identifiers_")
+# saveRDS(object = identifiers_2008, file = paste0("Data/identifiers_2008",".Rds"))
+# saveRDS(object = identifiers_2009, file = paste0("Data/identifiers_2009",".Rds"))
+# saveRDS(object = identifiers_2010, file = paste0("Data/identifiers_2010",".Rds"))
+# saveRDS(object = identifiers_2011, file = paste0("Data/identifiers_2011",".Rds"))
+# saveRDS(object = identifiers_2012, file = paste0("Data/identifiers_2012",".Rds"))
+# saveRDS(object = identifiers_2013, file = paste0("Data/identifiers_2013",".Rds"))
+# saveRDS(object = identifiers_2014, file = paste0("Data/identifiers_2014",".Rds"))
+# saveRDS(object = identifiers_2015, file = paste0("Data/identifiers_2015",".Rds"))
+# saveRDS(object = identifiers_2016, file = paste0("Data/identifiers_2016",".Rds"))
+# saveRDS(object = identifiers_2017, file = paste0("Data/identifiers_2017",".Rds"))
+# saveRDS(object = identifiers_2018, file = paste0("Data/identifiers_2018",".Rds"))
 
-#' Get play by play data for a specific game
-id_2018 <- id_games2018 %>% t %>%  as_tibble() %>% 
-    rename(game_id = V1,
-           home_id = V2) %>% 
-    mutate_if(is.character,as.numeric)
+my_files = paste0("Data/identifiers_", 2008:2018, ".Rds")
+name <- gsub("\\.Rds$", "", my_files) %>% 
+    gsub("Data/", "", .)
+my_data <- lapply(my_files, readRDS)
+names(my_data) <- gsub("\\.Rds$", "", name)
+
 
 year <- 2018
 pbp_2018<- data.frame()
@@ -42,24 +43,19 @@ for(i in 1:1){
     pbp_2018 <- bind_rows(pbp_2018,pbp)
 }
 
-for (i in 1:22) {
-    a[i] <- "Error in file"
-}
-b <- as_data_frame(a)
-
 safer_results <- possibly(get_pbp, otherwise = as_data_frame("Error finding file"))
 
-results <- data_frame()
-for (i in 1:nrow(id_2018)) {
-    all_results <- safer_results(year,id_2018[i,])
+results <- tibble()
+year <- 2011
+for (i in 1:nrow(my_data$identifiers_2011)) {
+    all_results <- safer_results(year,my_data$identifiers_2011[i,])
     all_results$game_nr <- i
     results<- bind_rows(results,all_results)
     
 }
+saveRDS(object = results, file = paste0("Data/pbp",year,".Rds"))
 
 
-
-    
 # compute boxscore for teams:
 team_h <- home_team
 team_a <- away_team
