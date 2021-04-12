@@ -46,15 +46,21 @@ for(i in 1:1){
 safer_results <- possibly(get_pbp, otherwise = as_data_frame("Error finding file"))
 
 results <- tibble()
-year <- 2011
-for (i in 1:nrow(my_data$identifiers_2011)) {
-    all_results <- safer_results(year,my_data$identifiers_2011[i,])
+year <- 2008
+for (i in 1:nrow(my_data$identifiers_2008)) {
+    all_results <- safer_results(year,my_data$identifiers_2008[i,])
     all_results$game_nr <- i
     results<- bind_rows(results,all_results)
     
 }
 saveRDS(object = results, file = paste0("Data/pbp",year,".Rds"))
 
+
+my_files = paste0("Data/pbp", 2008:2018, ".Rds")
+name <- gsub("\\.Rds$", "", my_files) %>% 
+    gsub("Data/", "", .)
+my_data <- lapply(my_files, readRDS)
+names(my_data) <- gsub("\\.Rds$", "", name)
 
 # compute boxscore for teams:
 team_h <- home_team
