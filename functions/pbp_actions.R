@@ -361,3 +361,18 @@ get_boxscore_player <- function(pbp,player){
                                pts = p3m * 3 + p2m * 2 + ftm)
     return(boxscore_player_xy)
 }
+
+first.changes <- function(d) {
+    a <- rle(d)
+    p <- cumsum(a$lengths) + 1
+    p[-length(p)]
+    
+    q <- lag(p)
+    q[1] <- 1
+    
+    ply <- a$values
+    
+    
+    z <- tibble(player = ply,start = q, end = p)
+    
+}
