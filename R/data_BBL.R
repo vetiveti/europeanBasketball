@@ -7,6 +7,7 @@ rm(list=ls())
 # source functions to use
 source('functions/BBL_functions.R')
 source('functions/pbp_actions.R')
+source('functions/minutes_played.R')
 
 library(tidyverse, warn.conflicts = FALSE)
 library(zoo)
@@ -35,8 +36,8 @@ names(game_id_data) <- gsub("\\.Rds$", "", name)
 # get results safely, because some games have no data
 safer_results <- possibly(get_pbp, otherwise = as_tibble("Error finding file"))
 
-################################################################################
-#' start downloading results and saving them
+#******************************************************************************#
+# Download PBP & save: ----
 #' do that for every year separately
 # year <- 2008
 # results <- tibble()
@@ -49,8 +50,8 @@ safer_results <- possibly(get_pbp, otherwise = as_tibble("Error finding file"))
 # saveRDS(object = results, file = paste0("Data/pbp",year,".Rds"))
 
 
-################################################################################
-#' download team rosters for every game
+#******************************************************************************#
+# Download team rosters for every game: ----
 # safer_roster <- possibly(get_rosters, otherwise = as_tibble("Error finding file"))
 # 
 # year <- 2008:2018
@@ -71,22 +72,21 @@ safer_results <- possibly(get_pbp, otherwise = as_tibble("Error finding file"))
 
 
 
-################################################################################
-#' load play by play files
+#******************************************************************************#
+# Load play by play files: ----
 pbp_files = paste0("Data/pbp", 2008:2018, ".Rds")
 name <- gsub("\\.Rds$", "", pbp_files) %>% 
     gsub("Data/", "", .)
 pbp_data <- lapply(pbp_files, readRDS)
 names(pbp_data) <- gsub("\\.Rds$", "", name)
 
-################################################################################
-# clean pbp data 
+#******************************************************************************#
+# Clean pbp data: ----
 # prepare game ids
 id <- game_id_data$identifiers_2018
 
 # prepare pbp data
 pbp <- pbp_data$pbp2018 %>% 
-    #filter(game_nr == 10) %>% 
     arrange(desc(spielzeit_sec )) %>% 
     arrange(game_nr)
 
@@ -102,8 +102,8 @@ pbp <- pbp %>%
     mutate_at("value", ~replace(., is.na(.), 0)) %>% 
     filter(value != "Error finding file")
 
-################################################################################
-#' load roster files
+#******************************************************************************#
+# Load roster files:----
 roster_files = paste0("Data/rosters_", 2008:2018, ".Rds")
 name <- gsub("\\.Rds$", "", roster_files) %>% 
     gsub("Data/", "", .)
@@ -115,31 +115,14 @@ roster <- roster_data$rosters_2018 %>%
     type_convert()
 roster$Club[roster$Club == "SYNTAINICS MBC"] <- "Mitteldeutscher BC"
 
-################################################################################
-#' calculate starters
+#******************************************************************************#
+# calculate starters: ----
 # delete some quarters as starters are not clear
 # pbp_starter <- pbp [-c(89409),]
 # 
 # pbp_starter <- pbp_starter %>% 
 #     mutate(game_q = game_id * quarter)
-# pbp_starter <- filter(pbp_starter,
-#                 game_q != 22072 * 4,
-#                 game_q != 22221 * 2,
-#                 game_q != 22326 * 4,
-#                 game_q != 22211 * 2,
-#                 game_q != 22325 * 3,
-#                 game_q != 22067 * 5,
-#                 game_q != 22067 * 6,
-#                 game_q != 22093 * 5,
-#                 game_q != 22105 * 5,
-#                 game_q != 22132 * 5,
-#                 game_q != 22149 * 5,
-#                 game_q != 22149 * 5,
-#                 game_q != 22187 * 5,
-#                 game_q != 22267 * 5,
-#                 game_q != 22274 * 1,
-#                 game_q != 22290 * 5,
-#                 game_q != 22333 * 5,)
+
 
 roster2018 <- calc_starters(pbp,roster) 
 
@@ -151,39 +134,37 @@ roster2018 <- calc_starters(pbp,roster)
 #' 
 #' Anyway the corrections are done by hand and can be found in the excel file.
 
-starters2018 <- roster2018
+starters2018 <- roster2018 %>% 
+    mutate(starter_Q5 = replace_na(starter_Q5,0),
+           starter_Q6 = replace_na(starter_Q6,0))
 starters2018$starter_Q4[starters2018$game_nr == 22072 & starters2018$Player == "Benjamin, Lischka"] <- 0
 starters2018$starter_Q4[starters2018$game_nr == 22144 & starters2018$Player == "Jason, Clark"] <- 0
 starters2018$starter_Q1[starters2018$game_nr == 22274 & starters2018$Player == "Dru, Joyce"] <- 1
 starters2018$starter_Q4[starters2018$game_nr == 22326 & grepl("Brooks",starters2018$Player)] <- 1
 starters2018$starter_Q3[starters2018$game_nr == 22325 & starters2018$Player == "Elston, Turner"] <- 1
 
-
 6740 - sum(duplicated(starters2018$game_nr))
+sum(starters2018$starter_Q1) / 10
+sum(starters2018$starter_Q2) / 10
+sum(starters2018$starter_Q3) / 10
+sum(starters2018$starter_Q4) / 10
+sum(starters2018$starter_Q5) / 10
+sum(starters2018$starter_Q6) / 10
 
-sum(starters2018$starter_Q1)
-sum(starters2018$starter_Q2)
-sum(starters2018$starter_Q3)
-sum(starters2018$starter_Q4)
-sum(starters2018$starter_Q5, na.rm = TRUE)
-sum(starters2018$starter_Q6, na.rm = TRUE)
+# pbp_game_1 <- filter(pbp_starter,
+#                      game_q == 22072 * 4)
+# 
+# # source functions to use
+# source('functions/BBL_functions.R')
+# source('functions/pbp_actions.R')
+# solve <- calc_starters(pbp_game_1,roster)
+# view(solve)
+# debugonce(calc_starters)
+# solve2 <- calc_starters(pbp_game_1,roster)
 
 
-pbp_game_1 <- filter(pbp_starter,
-                     game_q == 22072 * 4)
-
-# source functions to use
-source('functions/BBL_functions.R')
-source('functions/pbp_actions.R')
-solve <- calc_starters(pbp_game_1,roster)
-view(solve)
-debugonce(calc_starters)
-solve2 <- calc_starters(pbp_game_1,roster)
-
-################################################################################
-# compute boxscore for teams per game:
-#' Am Ende will ich für Spieler und Teams haben
-#' =stats per game & stats_totals
+#******************************************************************************#
+# boxscores teams pg & totals: ----
 un <- unique(pbp$game_id)
 
 id_plus_teams <- tibble(id = un,
@@ -221,231 +202,185 @@ team_totals <- bx_teams %>%
     group_by(team) %>% 
     summarise_at(vars(min:G), .funs = sum)
 
-
-
-player_2018 <- distinct(roster, Player, Club, .keep_all = TRUE) %>% 
+#******************************************************************************#
+# boxscore players pg & totals: ----
+players <- roster %>% 
     mutate_at("value", ~replace(., is.na(.), 0)) %>% 
     filter(value != "Error finding file")
 
-################################################################################
-# compute boxscore for players:
-player_totals <- data.frame()
-for(i in seq_along(player_2018$Player)) {
-    player <- player_2018$Player[i]
-    bx_player <- get_boxscore_player(pbp,player)
-    bx_player$team <- player_2018$Club[i]
-    player_totals <- bind_rows(player_totals, bx_player)
+
+length(unique(pbp$game_id))
+length(unique(players$game_nr))
+
+player_tot_perTeam_pg <- tibble()
+for(i in unique(pbp$game_id)) {
+    players_cur <- filter(players,
+                          game_nr == i)
+    pbp_cur <- filter(pbp,
+                      game_id == i)
+    
+    player_tot_cur <- tibble()
+    for (j in seq_along(players_cur$Player)) {
+        player_cur <- players_cur$Player[j]
+        bx_player_cur <- get_boxscore_player(pbp_cur,player_cur)
+        bx_player_cur$team <- players_cur$Club[j]
+        bx_player_cur$game <- players_cur$game_nr[j]
+        
+        player_tot_cur <- bind_rows(player_tot_cur, bx_player_cur)
+    }
+    player_tot_perTeam_pg <- bind_rows(player_tot_perTeam_pg, player_tot_cur)
 }
 
-a <- unique(roster$Player) %>%  as_tibble()
+player_tot_perTeam <- player_tot_perTeam_pg %>% 
+    group_by(stats,team) %>% 
+    summarise(
+        across(everything(), .fns = sum),
+               .groups = "drop"
+    ) %>%
+    select(-game) %>% 
+    rename(player = stats) %>% 
+    relocate(team, .after =player)
+
 #' assists are tricky!
 #' in the NBA assists are not granted for pass before FT in the FIBA world the count as assists!
 #' I compute the NBA style assists as I work with methods which are developed for the NBA
 
+#******************************************************************************#
+# calc. minutes played: ----
+#debugonce(playing_time)
+z <- tibble()
+y <- filter(pbp,
+            game_id ==22325)
+for (i in unique(y$game_id)) {
+    a <- filter(y,
+                game_id == i)
+    b <- filter(starters2018,
+                game_nr == i)
+    c <- playing_time(b,a)
+    c$game_nr <- i
+    
+    z <- bind_rows(z,c)
+}
+view(z)
 
-#' still missing...
-#' playing time for players
-#' auswechslungen und einwechslungen nicht erfasst
-#' fucking spielzeit wie kann man das ausrechnen?!
-
-
-
-
-
-# calculating minutes played.
 #' therefore a data frame must be build which tells who is on the court and when
 #' this must be done for every single game!
-
-pbp_game <- pbp %>% 
-    filter(game_id == 22045)
-
-b <- as_tibble(cbind(nms = names(roster_game), t(roster_game))) %>% 
+play_time <- tibble()
+for (i in unique(pbp$game_id)) {
+    a <- filter(pbp,
+                game_id == i)
+    b <- filter(starters2018,
+                game_nr == i)
+    c <- playing_time(b,a)
+    c$game_nr <- i
     
-
-c <- bind_cols(pbp_game,b) %>% 
-    filter(quarter == 1)
-
-for (j in 2:nrow(c)) {
-    if(c$aktion[j] == "SUBST"){
-    }else{
-        c[j,c("V1","V2","V3","V4","V5","V6","V7","V8","V9","V10")] <- "fill"
-    }
+    play_time <- bind_rows(play_time,c)
 }
 
-d <- c %>% 
-    filter(aktion == "SUBST")
+games_played  <- play_time %>%                         # Count rows by group
+    group_by(player) %>% 
+    summarise(G = n())
 
-e <- d %>% 
-    mutate_at(vars(starts_with("V")),
-              funs(case_when(
-                  Player_1 == . ~ Player_2,
-                  Player_1 != . ~ "fill"
-              )))
+play_time1 <- play_time %>% 
+    mutate_at("sec_total", ~replace(., is.na(.), 0))
 
-f <- bind_rows(c,e) %>% 
-    group_by(nummer_aktion, quarter) %>% 
-    filter(row_number() == n()) %>% 
+df <- play_time1 %>% group_by(player) %>%
+    summarize(Sum_sec = sum(sec_total)) %>% 
+    mutate(min_sec_played = lubridate::seconds_to_period(Sum_sec)) %>% 
+    mutate(min_sec = round(Sum_sec / 60, digits = 2))
+
+
+n_distinct(roster2018$game_nr)
+
+n_distinct(roster$game_nr)
+
+setdiff(roster$game_nr, starters2018$game_nr)
+
+#******************************************************************************#
+# Merge boxscore & playing time: ----
+df_new <- merge(df,player_tot_perTeam,
+                by = "player")
+
+player_data <- merge(df_new, games_played,
+             by = "player") %>% 
+    relocate(G, .after = player)
+player_data$player <- trimws(player_data$player)
+player_data$player[player_data$player == "Ra#Shad, James"] <- "Ra'Shad, James"
+
+#******************************************************************************#
+# Download Position etc. & merge: ----
+player_info <- pos_cm_kg(2018)
+player_info$player[player_info$player == "Ra#Shad, James"] <- "Ra'Shad, James"
+
+player_data_info<- merge(player_data,player_info,
+                     by = "player") %>% 
+    filter(., not_played == 0) %>% 
+    distinct(.,player,team, .keep_all = TRUE)
+
+#******************************************************************************#
+# calc. team fg, opp_fg, win_pct:----
+team_totals <- team_totals %>% 
+    mutate(fga = p2a + p3a,
+           fgm = p2m + p3m,
+           opp_fga = opp_p2a + opp_p3a,
+           opp_fgm = opp_p2m + opp_p3m,
+           min = round(min / 60 *5)) %>% 
+    relocate(fga:opp_fgm, .before = opp_pts)
+
+#******************************************************************************#
+# boxscore team pg:----
+team_pg <- team_totals %>% 
+    mutate(across(.cols = min:opp_pts, ~ .x / G),
+           win_pct = W/G)
+
+#******************************************************************************#
+# calc. player min_p, fg:----
+player_data_info <- player_data_info %>% 
+    mutate(min_p = round(Sum_sec /60),
+           fga = p2a + p3a,
+           fgm = p2m + p3m,) %>% 
+    relocate(min_p, .after = G) %>% 
+    relocate(fgm, .before=pts) %>% 
+    relocate(fga, .before= pts) %>% 
+    relocate(team, .after = player) %>% 
+    select(-min_sec, -min_sec_played, -Sum_sec)
+
+#******************************************************************************#
+# boxscore player pg:----
+player_pg <- player_data_info %>%
+    mutate(across(.cols = min_p:pts, ~ .x / G))
+
+#******************************************************************************#
+# player foul percentage:----
+# foul percentage
+team_for_merge <- team_totals %>% 
+    select(team, opp_ftm, pf, G) %>% 
+    rename(pf_t = pf) %>% 
+    rename(G_t = G)
+
+player_for_merge <- player_data_info %>% 
+    select(player, team, pf,G) %>% 
+    mutate(pf_p = pf) %>% 
+    rename(G_p = G)
+
+player_perT <- merge(player_for_merge,team_for_merge,
+                     by = "team",
+                     all = TRUE) %>% 
+    mutate(pf_p = pf_p / G_t)
+
+player_perT <- player_perT %>% 
+    group_by(team) %>% 
+    mutate(PF_perc = pf_p / pf_t,
+           pf_p = opp_ftm * PF_perc * G_t) %>% 
     ungroup() %>% 
-    arrange(nummer_aktion)
+    select(player,team,pf_p)
 
+player_totals <- merge(player_data_info, player_perT,
+                       by = c("player","team"))
+#******************************************************************************#
+# save files:----
+saveRDS(object = player_pg, file = paste0("Data/player_pg_2018",".Rds"))
+saveRDS(object = player_totals, file = paste0("Data/player_totals_2018",".Rds"))
 
-aaa <- unique(pbp$game_id)
-for (game in pbp) {
-    # calculating minutes played for players and lineups per game
-    pbp_game <- pbp %>% 
-        filter(game_id == game)
-    
-    roster_game <- roster2018 %>% 
-        filter(game_nr == game)
-    
-    roster_game <- roster_game %>% 
-        select(Player, starter_Q1:starter_Q4) %>% 
-        mutate(Q1 = if_else(starter_Q1 == 1,Player,"0"),
-               Q2 = if_else(starter_Q2 == 1,Player,"0"),
-               Q3 = if_else(starter_Q3 == 1,Player,"0"),
-               Q4 = if_else(starter_Q4 == 1,Player,"0"))
-    
-    
-    pbp_merg <- tibble()
-    for(viertel in 1:10){
-        assign(paste0("quarter_",viertel),subset(pbp_game, quarter == viertel))
-        if(nrow(subset(pbp_game, quarter == viertel)) == 0){break}
-        
-        b <- roster_game %>% 
-            select(paste0("Q",viertel)) %>% 
-            filter(. != "0") %>% 
-            t(.) %>% 
-            as_tibble()
-        
-        c <- bind_cols(pbp_game,b) %>% 
-            filter(quarter == viertel)
-        
-        for (j in 2:nrow(c)) {
-            if(c$aktion[j] == "SUBST"){
-            }else{
-                c[j,c("V1","V2","V3","V4","V5","V6","V7","V8","V9","V10")] <- NA
-            }
-        }
-        
-        
-        d <- c %>% 
-            filter(aktion == "SUBST" | aktion == "START")
-        
-        for (i in 2:nrow(d)) {
-            d[i,"V1"] <- ifelse(d$Player_1[i] != d$V1[i-1] ,d[i-1,"V1"], d$Player_2[i])
-            d[i,"V2"] <- ifelse(d$Player_1[i] != d$V2[i-1] ,d[i-1,"V2"], d$Player_2[i])
-            d[i,"V3"] <- ifelse(d$Player_1[i] != d$V3[i-1] ,d[i-1,"V3"], d$Player_2[i])
-            d[i,"V4"] <- ifelse(d$Player_1[i] != d$V4[i-1] ,d[i-1,"V4"], d$Player_2[i])
-            d[i,"V5"] <- ifelse(d$Player_1[i] != d$V5[i-1] ,d[i-1,"V5"], d$Player_2[i])
-            d[i,"V6"] <- ifelse(d$Player_1[i] != d$V6[i-1] ,d[i-1,"V6"], d$Player_2[i])
-            d[i,"V7"] <- ifelse(d$Player_1[i] != d$V7[i-1] ,d[i-1,"V7"], d$Player_2[i])
-            d[i,"V8"] <- ifelse(d$Player_1[i] != d$V8[i-1] ,d[i-1,"V8"], d$Player_2[i])
-            d[i,"V9"] <- ifelse(d$Player_1[i] != d$V9[i-1] ,d[i-1,"V9"], d$Player_2[i])
-            d[i,"V10"] <- ifelse(d$Player_1[i] != d$V10[i-1] ,d[i-1,"V10"], d$Player_2[i])
-        }
-        
-        data_new <- d[- 1, ]
-        
-        
-        
-        f <- bind_rows(c,data_new) %>%
-            group_by(nummer_aktion, quarter) %>%
-            filter(row_number() == n()) %>%
-            ungroup() %>%
-            arrange(nummer_aktion)
-        if(viertel == 1){
-            g <- f   
-        }
-        
-        pbp_merg <- bind_rows(pbp_merg,f)
-    }
-    
-    
-    pbp_merge <- na.locf(pbp_merg, na.rm = FALSE)
-    
-    cols <- c("V1","V2","V3","V4","V5","V6","V7","V8","V9","V10")
-    
-    eve <- tibble()
-    for (ii in 1:10) {
-        a <- cols[ii]
-        b <- first.changes(pbp_merge[[a]])
-        
-        eve <- bind_rows(eve,b)
-    }
-    
-    a <- eve %>% 
-        mutate(start_time = pbp_merge$spielzeit_sec[eve$start],
-               end_time = pbp_merge$spielzeit_sec[eve$end],
-               start_q = pbp_merge$quarter[eve$start],
-               end_q = pbp_merge$quarter[eve$end])
-    
-    t_played <- a %>% 
-        mutate_at("end_q", ~replace(., is.na(.), 4)) %>% 
-        mutate_at("end_time", ~replace(., is.na(.), 0)) %>% 
-        mutate(sec = case_when(
-            start_q == end_q ~ start_time - end_time,
-            start_q != end_q & end_time == 600 ~ start_time - 0,
-            start_q == (end_q -1) & end_time != 600 ~ start_time - 0 + 600 - end_time
-        ))
-    
-    total <- sum(t_played$sec) / 60
-    
-    t_ply <- t_played %>% 
-        group_by(player) %>% 
-        mutate(sec_total = sum(sec)) %>% 
-        ungroup() %>% 
-        distinct(player, .keep_all = TRUE) %>% 
-        mutate(min_sec_played = seconds_to_period(sec_total))
-}
-
-
-
-
-################################################################################
-#' download starters for every quarter for every game and team does only work
-#' for 2018. Before data is not provided...
-#' I think I have to compute the starters manually from the pbp data and use
-#' 2018 to check if I do it right
-url_starter <- gsub(" ","",paste("http://live.easycredit-bbl.de/data",2018,
-                                 "/bbl/",439,
-                                 "/",22325,
-                                 ".JSN"))
-id_extract <- game_id_data[[paste0("identifiers_",2018)]]
-url_starter <- gsub(" ","",paste("http://live.easycredit-bbl.de/data",2018,
-                                 "/bbl/",id_extract[1,2], "/",id_extract[1,1], ".JSN"))
-# Which teams did play?
-json_starter <- get_json(url_starter)
-
-df <- json_starter$statind %>% 
-    as_tibble() %>% 
-    rename(teamcode = V1,
-           spielcode = V2,
-           spieler_nummer = V3,
-           pts = V4,
-           ftm = V5,
-           fta = V6,
-           ft_pct = V7,
-           p2m = V8,
-           p2a = V9,
-           p2_pct = V10,
-           p3m = V11,
-           p3a = V12,
-           p3_pct = V13,
-           pf = V14,
-           trb = V15,
-           ast = V16,
-           blk = V17,
-           stl = V18,
-           tov = V19,
-           index1 = V20,
-           index2 = V21,
-           min_mmss = V22,
-           min_mm = V23,
-           drb = V24,
-           orb = V25,
-           starter_1 = V26,
-           starter_2 = V27,
-           starter_3 = V28,
-           starter_4 = V29) %>% 
-    type_convert()
-df$game_nr <- json_starter$Game
+saveRDS(object = team_pg, file = paste0("Data/team_pg_2018",".Rds"))
+saveRDS(object = team_totals, file = paste0("Data/team_totals_2018",".Rds"))

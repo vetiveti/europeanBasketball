@@ -63,12 +63,6 @@ BBL_game_ids <- function(year){
         assign(paste0("identifiers_",year[i],sep =""),identifiers,envir =.GlobalEnv) 
     }
     
-    
-    
-    
-    
-    
-    
     rm$close()
     # stop the selenium server
     remDr$server$stop()
@@ -394,76 +388,218 @@ calc_starters <- function(pbp_game,roster){
     return(roster_final)
 }
 
-#' compute starting rosters for each quarter per game and team
-calc_starters2 <- function(pbp_game,roster){
-    roster_final <- tibble()
-    for (current_game in unique(pbp_game$game_id)) {
-        pbp_g <- filter(pbp_game,game_id == current_game)
-        roster_g <- filter(roster,game_nr == current_game)
+#' download player position age weight and height
+pos_cm_kg <- function(year){
+    #' start R Selenium
+    remDr <- RSelenium::rsDriver(verbose = T,
+                                 remoteServerAddr = "localhost",
+                                 port = 4444L,
+                                 browser=c("firefox"))
+    rm <- remDr$client
+    rm$navigate("https://www.easycredit-bbl.de/de/saison/tabelle/gesamt/") 
+    Sys.sleep(1)
+    
+    base <- "//select[@id='saison']/option[@value="
+    year_id <- glue::glue('{base}', "\'",
+                          year,"\']") %>% as.character()
+    
+    option_season <- rm$findElement(using = 'xpath', year_id)
+    option_season$clickElement()
+    
+    page <- unlist(rm$getPageSource())
+    
+    page <- page %>%
+        readr::read_lines() %>%
+        str_replace_all("<!--|-->", "") %>%
+        str_trim() %>%
+        stringi::stri_trans_general("ASCII-Latin") %>%
+        str_c(collapse = "") %>%
+        xml2::read_html()
+    
+    xml_tables <- page %>%
+        rvest::html_nodes(css = "[href*='/de/easycredit-bbl/historie/teams/t/']")
+    
+    team_urls <- xml_tables %>%
+        rvest::html_attr("href")
+    
+    team_urls<- unique(team_urls)
+    
+    b <- paste0(year,"-",year+1)
+    a <- grepl(b,team_urls)
+    team_urls <- team_urls[a]
+    
+    all_team_rosters <- tibble()
+    for (i in 1:length(team_urls)) {
+        current_team_url <- paste0("https://www.easycredit-bbl.de",team_urls[i])
+        rm$navigate(current_team_url)
+        Sys.sleep(2)
         
-        for (current_Q in unique(pbp_g$quarter)) {
-            pbp <- filter(pbp_g,quarter == current_Q)
-            
-            starter <- c()
-            for(player in roster_g$Player){
-                # subbed out
-                sub_out <- nrow(filter(pbp, aktion == "SUBST", Player_1 == player))
-                
-                act_sub_out<- filter(pbp, aktion == "SUBST", Player_1 == player) %>% 
-                    select(nummer_aktion)
-                
-                # subbed in
-                sub_in <- nrow(filter(pbp, aktion == "SUBST", Player_2 == player))
-                
-                act_sub_in<- filter(pbp, aktion == "SUBST", Player_2 == player) %>% 
-                    select(nummer_aktion)
-                
-                # actions 
-                actions <- nrow(filter(pbp, Player_1 == player | Player_2 == player,
-                                       nummer_aktion != 2,
-                                       aktion != "FOUL"))
-                
-                first_action <- filter(pbp, Player_1 == player | Player_2 == player) %>% 
-                    select(nummer_aktion)
-                
-                if (actions > 0 && sub_in > 0) {
-                    
-                    if (min(first_action) < min(act_sub_in)){
-                        starter <- append(starter,player)
-                    }
-                }
-                
-                if(sub_out > 0 && sub_in > 0){
-                    
-                    if (min(act_sub_out) < min(act_sub_in)){
-                        starter <- append(starter,player)
-                    }
-                    
-                } else if(sub_out > 0 && sub_in == 0){
-                    starter <- append(starter,player)
-                    
-                }else if(sub_out == 0 && sub_in == 0){
-                    
-                    if(actions > 0){
-                        starter <- append(starter,player)
-                    }
-                }
-            }
-            
-            
-            if(length(starter) < 10 ){
-                message(paste0("starters missing in game ", current_game, ", quarter ", current_Q))
-            } else if(length(starter) > 10){
-                message(paste0("to many starters in game ", current_game, ", quarter ", current_Q))
-            }
-            
-            quarter <- current_Q
-            roster_g <- roster_g %>% 
-                mutate("starter_Q{quarter}" := if_else((roster_g$Player %in% starter) == TRUE,1,0))
-            
-        }
-        roster_final <- bind_rows(roster_final,roster_g)
+        page <- unlist(rm$getPageSource())
+        page <- page %>%
+            readr::read_lines() %>%
+            str_replace_all("<!--|-->", "") %>%
+            str_trim() %>%
+            stringi::stri_trans_general("ASCII-de") %>%
+            str_c(collapse = "") %>%
+            xml2::read_html()
+        
+        current_team <- page %>%
+            rvest::html_node(css = "table") %>% 
+            rvest::html_table()
+        
+        all_team_rosters <- rbind(all_team_rosters,current_team)
     }
-    return(roster_final)
+    
+    all_team_rosters$player <- paste0(all_team_rosters$Vorname, ", ",all_team_rosters$Name)
+    
+    all_team_rosters$left_team <- grepl(pattern = "\\*\\*",all_team_rosters$Name)
+    all_team_rosters$not_played <- grepl(pattern = "\\*",all_team_rosters$Name)
+    
+    all_team_rosters <- all_team_rosters%>% 
+        mutate(not_played = ifelse(not_played==TRUE,1,0),
+               left_team= ifelse(left_team==TRUE,1,0))
+    
+    all_team_rosters$player <- gsub("\\*","",all_team_rosters$player)
+    
+    rosters <- all_team_rosters %>% 
+        select(player,Nr.,Geburtsdatum:left_team,not_played) %>% 
+        mutate(not_played = ifelse(not_played+left_team>1,0,not_played))
+    rosters$year <- year
+    rosters$player <- trimws(rosters$player)
+    
+    
+    rm$close()
+    # stop the selenium server
+    remDr$server$stop()
+    base::rm(remDr)
+    gc()
+    system("taskkill /im java.exe /f", intern=FALSE, ignore.stdout=FALSE)
+    
+    return(rosters)
 }
 
+# calculate minutes played
+playing_time <- function(roster_game, pbp_game){
+    roster_game <- roster_game %>% 
+        select(Player, starter_Q1:starter_Q6) %>% 
+        mutate(Q1 = if_else(starter_Q1 == 1,Player,"0"),
+               Q2 = if_else(starter_Q2 == 1,Player,"0"),
+               Q3 = if_else(starter_Q3 == 1,Player,"0"),
+               Q4 = if_else(starter_Q4 == 1,Player,"0"),
+               Q5 = if_else(starter_Q5 == 1,Player,"0"),
+               Q6 = if_else(starter_Q6 == 1,Player,"0"))
+    
+    
+    pbp_merg <- tibble()
+    for(viertel in 1:10){
+        assign(paste0("quarter_",viertel),subset(pbp_game, quarter == viertel))
+        if(nrow(subset(pbp_game, quarter == viertel)) == 0){break}
+        
+        b <- roster_game %>% 
+            select(paste0("Q",viertel)) %>% 
+            filter(. != "0") %>% 
+            t(.) %>% 
+            as_tibble()
+        
+        c <- bind_cols(pbp_game,b) %>% 
+            filter(quarter == viertel)
+        
+        for (j in 2:nrow(c)) {
+            if(c$aktion[j] == "SUBST"){
+            }else{
+                c[j,c("V1","V2","V3","V4","V5","V6","V7","V8","V9","V10")] <- NA
+            }
+        }
+        
+        
+        d <- c %>% 
+            filter(aktion == "SUBST" | aktion == "START")
+        
+        for (i in 2:nrow(d)) {
+            d[i,"V1"] <- ifelse(d$Player_1[i] != d$V1[i-1] ,d[i-1,"V1"], d$Player_2[i])
+            d[i,"V2"] <- ifelse(d$Player_1[i] != d$V2[i-1] ,d[i-1,"V2"], d$Player_2[i])
+            d[i,"V3"] <- ifelse(d$Player_1[i] != d$V3[i-1] ,d[i-1,"V3"], d$Player_2[i])
+            d[i,"V4"] <- ifelse(d$Player_1[i] != d$V4[i-1] ,d[i-1,"V4"], d$Player_2[i])
+            d[i,"V5"] <- ifelse(d$Player_1[i] != d$V5[i-1] ,d[i-1,"V5"], d$Player_2[i])
+            d[i,"V6"] <- ifelse(d$Player_1[i] != d$V6[i-1] ,d[i-1,"V6"], d$Player_2[i])
+            d[i,"V7"] <- ifelse(d$Player_1[i] != d$V7[i-1] ,d[i-1,"V7"], d$Player_2[i])
+            d[i,"V8"] <- ifelse(d$Player_1[i] != d$V8[i-1] ,d[i-1,"V8"], d$Player_2[i])
+            d[i,"V9"] <- ifelse(d$Player_1[i] != d$V9[i-1] ,d[i-1,"V9"], d$Player_2[i])
+            d[i,"V10"] <- ifelse(d$Player_1[i] != d$V10[i-1] ,d[i-1,"V10"], d$Player_2[i])
+        }
+        
+        data_new <- d[- 1, ]
+        
+        
+        
+        f <- bind_rows(c,data_new) %>%
+            group_by(nummer_aktion, quarter) %>%
+            filter(row_number() == n()) %>%
+            ungroup() %>%
+            arrange(nummer_aktion)
+        
+        pbp_merg <- bind_rows(pbp_merg,f)
+    }
+    
+    
+    pbp_merge <- na.locf(pbp_merg, na.rm = FALSE)
+    
+    cols <- c("V1","V2","V3","V4","V5","V6","V7","V8","V9","V10")
+    
+    eve <- tibble()
+    for (ii in 1:10) {
+        a <- cols[ii]
+        b <- first.changes(pbp_merge[[a]])
+        
+        eve <- bind_rows(eve,b)
+    }
+    
+    a <- eve %>% 
+        mutate(start_time = pbp_merge$spielzeit_sec[eve$start],
+               end_time = pbp_merge$spielzeit_sec[eve$end],
+               start_q = pbp_merge$quarter[eve$start],
+               end_q = pbp_merge$quarter[eve$end])
+    
+    t_played <- a %>% 
+        mutate_at("end_q", ~replace(., is.na(.), viertel -1)) %>% 
+        mutate_at("end_time", ~replace(., is.na(.), 0))
+    
+    t_played <- t_played %>% 
+        mutate(sec = case_when(
+            # same quarter
+            start_q == end_q ~ start_time - end_time,
+            start_q == end_q -1 & end_time == 600 ~ start_time - 0,
+            start_q == end_q -2 & end_time == 600 ~ 600 + start_time - 0,
+            start_q == end_q -3 & end_time == 600 ~ 600 + 600 + start_time - 0,
+            # different quarter in regular playing time
+            start_q == (end_q -1) & end_time != 600 & start_q + end_q < 9 ~ start_time - 0 + 600 - end_time,
+            start_q == (end_q -2) & end_time != 600 & start_q + end_q < 9 ~ start_time - 0 + 600 + 600 - end_time,
+            start_q == (end_q -3) & end_time != 600 & start_q + end_q < 9 ~ start_time - 0 + 600 + 600 + 600 - end_time,
+            start_q == (end_q -4) & start_q + end_q < 9 ~ 600 + 600 + 600 + 600,
+            
+            start_q == 2 & end_q == 5 & end_time != 600 ~ start_time - 0 + 600 + 600 + 300 - end_time,
+            start_q == 3 & end_q == 5 & end_time != 600 ~ start_time - 0 + 600 + 300 - end_time,
+            start_q == 3 & end_q == 6 & end_time != 600 ~ start_time - 0 + 600 + 300 + 300 - end_time,
+            start_q == 4 & end_q == 5 & end_time != 600 ~ start_time - 0 + 300 - end_time,
+            start_q == 4 & end_q == 6 & end_time != 600 ~ start_time - 0 + 300 + 300 - end_time,
+            start_q == 4 & end_q == 7 & end_time != 600 ~ start_time - 0 + 300 + 300 + 300 - end_time,
+            
+            # different quarter in overtime
+            start_q == end_q -1 & end_time == 300 ~ start_time - 0,
+            start_q == end_q -2 & end_time == 300 ~ 300 + start_time - 0,
+            start_q == 5 & end_q == 6 & end_time != 300 ~ start_time - 0 + 300 - end_time,
+            start_q == 5 & end_q == 7 & end_time != 300 ~ start_time - 0 + 300 + 300 - end_time,
+            start_q == 5 & end_q == 8 & end_time != 300 ~ start_time - 0 + 300 + 300 + 300 - end_time,
+            start_q == 6 & end_q == 7 & end_time != 300 ~ start_time - 0 + 300 - end_time,
+            start_q == 6 & end_q == 8 & end_time != 300 ~ start_time - 0 + 300 + 300 - end_time,
+            start_q == 7 & end_q == 8 & end_time != 300 ~ start_time - 0 + 300 - end_time,
+        ))
+    
+    t_ply <- t_played %>%
+        mutate(sec = ifelse(sec >= 0,sec,0)) %>% 
+        group_by(player) %>%
+        mutate(sec_total = sum(sec)) %>%
+        ungroup() %>%
+        distinct(player, .keep_all = TRUE) %>%
+        mutate(min_sec_played = lubridate::seconds_to_period(sec_total))
+}

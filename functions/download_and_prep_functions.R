@@ -761,7 +761,7 @@ roster_stability <- function(statistic = stats4){
   team_rosters
 }
 
-#### BBL DOwnload function ####
+#### BBL Download function ####
 id_games_BBL <- function(c = c){
   option_season <- rm$findElement(using = 'xpath', c)
   option_season$clickElement()
