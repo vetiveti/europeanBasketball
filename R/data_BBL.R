@@ -43,18 +43,19 @@ names(pbp_data) <- gsub("\\.Rds$", "", name)
 #******************************************************************************#
 # Clean pbp data: ----
 # prepare game ids
-id <- game_id_data$identifiers_2017
+id <- game_id_data$identifiers_2016
 
 # prepare pbp data
-pbp <- pbp_data$pbp2017 %>% 
+pbp <- pbp_data$pbp2016 %>% 
     arrange(desc(spielzeit_sec )) %>% 
     arrange(game_nr)
 
 # prepare roster data
-roster <- roster_data$rosters_2017 %>% 
+roster <- roster_data$rosters_2016 %>% 
     type_convert()
 unique(roster$Club)
 
+# 2017
 roster$Club[roster$Club == "s.Oliver Würzurg"] <- "s.Oliver Würzburg"
 roster$Club[roster$Club == "Oettinger Rockets"] <- "Rockets"
 roster <- roster %>% 
@@ -67,6 +68,7 @@ id <- id %>%
 pbp <- pbp %>% 
     filter(.,game_nr != 55 & game_nr != 60)    
 
+#
 id_merge <- bind_cols(id, unique(pbp$game_nr)) %>% 
     rename(nr = `...3`)
 
@@ -88,6 +90,47 @@ pbp <- pbp %>%
 #' solve this issue!!!
 #' 
 #' Anyway the corrections are done by hand and can be found in the excel file.
+
+# 2016
+roster2016 <- calc_starters(pbp,roster) 
+
+#
+# pbp_starter <- pbp %>%
+#     mutate(game_q = game_id * quarter)
+# 
+pbp_game_1 <- filter(pbp_starter,
+                     game_q == 19619 * 5)
+
+solve <- calc_starters(pbp_game_1,roster)
+view(solve)
+# debugonce(calc_starters)
+# solve2 <- calc_starters(pbp_game_1,roster)
+#
+starters2016 <- roster2016 %>% 
+    mutate(starter_Q5 = replace_na(starter_Q5,0),
+           starter_Q6 = replace_na(starter_Q6,0))
+
+starters2016$starter_Q1[starters2016$game_nr == 19579 & starters2016$Player == "Jonas, Grof"] <- 0
+starters2016$starter_Q2[starters2016$game_nr == 19599 & starters2016$Player == "Moses, Ehambe"] <- 1
+starters2016$starter_Q2[starters2016$game_nr == 19603 & starters2016$Player == "Paul, Carter"] <- 0
+starters2016$starter_Q4[starters2016$game_nr == 19625 & starters2016$Player == "Wes, Washpun"] <- 1
+starters2016$starter_Q5[starters2016$game_nr == 19749 & starters2016$Player == "Brian, Qvale"] <- 1
+starters2016$starter_Q5[starters2016$game_nr == 19783 & starters2016$Player == "Shawn, Huff"] <- 1
+starters2016$starter_Q4[starters2016$game_nr == 19798 & starters2016$Player == "Ojars, Silins"] <- 1
+starters2016$starter_Q5[starters2016$game_nr == 19817 & starters2016$Player == "Stefan, Ilzhöfer"] <- 1
+starters2016$starter_Q5[starters2016$game_nr == 19619 & starters2016$Player == "Nihad, Djedovic"] <- 0
+
+
+anzahl <- unique(starters2016$game_nr) %>% as_tibble() %>% nrow()
+print(anzahl)
+sum(starters2016$starter_Q1) / 10
+sum(starters2016$starter_Q2) / 10
+sum(starters2016$starter_Q3) / 10
+sum(starters2016$starter_Q4) / 10
+sum(starters2016$starter_Q5) / 10
+
+pbp <- filter(pbp,
+                (game_id != 19619 | quarter != 5))
 
 # 2017
 roster2017 <- calc_starters(pbp,roster) 
@@ -187,6 +230,8 @@ bx_teams <- bx_teams %>%
            L = if_else(pts<opp_pts,1,0),
            G = W + L) %>% 
     rename(team = stats)
+# 2016
+unique(bx_teams$team)
 
 # 2017
 unique(bx_teams$team)
@@ -274,7 +319,7 @@ play_time <- tibble()
 for (i in unique(pbp$game_id)) {
     a <- filter(pbp,
                 game_id == i)
-    b <- filter(starters2017,
+    b <- filter(starters2016,
                 game_nr == i)
     c <- playing_time(b,a)
     c$game_nr <- i
@@ -295,11 +340,11 @@ df <- play_time1 %>% group_by(player) %>%
     mutate(min_sec = round(Sum_sec / 60, digits = 2))
 
 
-n_distinct(roster2017$game_nr)
+n_distinct(roster2016$game_nr)
 
 n_distinct(roster$game_nr)
 
-setdiff(roster$game_nr, starters2017$game_nr)
+setdiff(roster$game_nr, starters2016$game_nr)
 
 #******************************************************************************#
 # Merge boxscore & playing time: ----
@@ -311,6 +356,9 @@ player_data <- merge(df_new, games_played,
     relocate(G, .after = player)
 player_data$player <- trimws(player_data$player)
 
+# 2016
+player_data$player[player_data$player == "Jonas, Wohlfarth-B."] <- "Jonas, Wohlfarth-Bottermann"
+
 # 2017
 player_data$player[player_data$player == "Miles, Jackson-C"] <- "Miles, Jackson-Cartwright"
 
@@ -320,8 +368,8 @@ player_data$player[player_data$player == "Ra#Shad, James"] <- "Ra'Shad, James"
 #******************************************************************************#
 # Download Position etc. & merge: ----
 # 2017
-player_info <- pos_cm_kg(2017)
-player_info$player[player_info$player == "Miles, Jackson-C"] <- "Miles, Jackson-Cartwright"
+player_info <- pos_cm_kg(2016)
+player_info$player[player_data$player == "Jonas, Wohlfarth-B."] <- "Jonas, Wohlfarth-Bottermann"
 
 player_data_info<- merge(player_data,player_info,
                          by = "player") %>% 
