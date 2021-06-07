@@ -7,26 +7,21 @@ rm(list=ls())
 # source functions to use
 source('functions/BBL_functions.R')
 source('functions/pbp_actions.R')
-source('functions/minutes_played.R')
+
 
 library(tidyverse, warn.conflicts = FALSE)
 library(zoo)
 
-#a <- BBL_game_ids(year = 2008:2018)
-# save_rds <- ls(pattern = "identifiers_")
-# saveRDS(object = identifiers_2008, file = paste0("Data/identifiers_2008",".Rds"))
-# saveRDS(object = identifiers_2009, file = paste0("Data/identifiers_2009",".Rds"))
-# saveRDS(object = identifiers_2010, file = paste0("Data/identifiers_2010",".Rds"))
-# saveRDS(object = identifiers_2011, file = paste0("Data/identifiers_2011",".Rds"))
-# saveRDS(object = identifiers_2012, file = paste0("Data/identifiers_2012",".Rds"))
-# saveRDS(object = identifiers_2013, file = paste0("Data/identifiers_2013",".Rds"))
-# saveRDS(object = identifiers_2014, file = paste0("Data/identifiers_2014",".Rds"))
-# saveRDS(object = identifiers_2015, file = paste0("Data/identifiers_2015",".Rds"))
-# saveRDS(object = identifiers_2016, file = paste0("Data/identifiers_2016",".Rds"))
-# saveRDS(object = identifiers_2017, file = paste0("Data/identifiers_2017",".Rds"))
-# saveRDS(object = identifiers_2018, file = paste0("Data/identifiers_2018",".Rds"))
+#******************************************************************************#
+# Load roster files:----
+roster_files = paste0("Data/rosters_", 2008:2018, ".Rds")
+name <- gsub("\\.Rds$", "", roster_files) %>% 
+    gsub("Data/", "", .)
+roster_data <- lapply(roster_files, readRDS)
+names(roster_data) <- gsub("\\.Rds$", "", name)
 
-# load identifiers:
+#******************************************************************************#
+# load identifiers: ----
 game_id_files = paste0("Data/identifiers_", 2008:2018, ".Rds")
 name <- gsub("\\.Rds$", "", game_id_files) %>% 
     gsub("Data/", "", .)
@@ -37,42 +32,6 @@ names(game_id_data) <- gsub("\\.Rds$", "", name)
 safer_results <- possibly(get_pbp, otherwise = as_tibble("Error finding file"))
 
 #******************************************************************************#
-# Download PBP & save: ----
-#' do that for every year separately
-# year <- 2008
-# results <- tibble()
-# for (i in 1:nrow(game_id_data$identifiers_2008)) {
-#     all_results <- safer_results(year,game_id_data$identifiers_2008[i,])
-#     all_results$game_nr <- i
-#     results<- bind_rows(results,all_results)
-# 
-# }
-# saveRDS(object = results, file = paste0("Data/pbp",year,".Rds"))
-
-
-#******************************************************************************#
-# Download team rosters for every game: ----
-# safer_roster <- possibly(get_rosters, otherwise = as_tibble("Error finding file"))
-# 
-# year <- 2008:2018
-# 
-# for (j in year) {
-#     id_extract <- game_id_data[[paste0("identifiers_",j)]]
-#     df_roster <- tibble()
-#     
-#     for (i in 1:nrow(id_extract)) {
-#         current <- safer_roster(id_extract[i,],j)
-#         df_roster <- bind_rows(df_roster,current)
-#         
-#     }
-#     assign(paste0("rosters_",j),df_roster)
-#     saveRDS(object = get(paste0("rosters_",j)),file = paste0("Data/rosters_",j,".Rds"))
-# }
-
-
-
-
-#******************************************************************************#
 # Load play by play files: ----
 pbp_files = paste0("Data/pbp", 2008:2018, ".Rds")
 name <- gsub("\\.Rds$", "", pbp_files) %>% 
@@ -80,15 +39,33 @@ name <- gsub("\\.Rds$", "", pbp_files) %>%
 pbp_data <- lapply(pbp_files, readRDS)
 names(pbp_data) <- gsub("\\.Rds$", "", name)
 
+# YEAR BY YEAR:  ----
 #******************************************************************************#
 # Clean pbp data: ----
 # prepare game ids
-id <- game_id_data$identifiers_2018
+id <- game_id_data$identifiers_2017
 
 # prepare pbp data
-pbp <- pbp_data$pbp2018 %>% 
+pbp <- pbp_data$pbp2017 %>% 
     arrange(desc(spielzeit_sec )) %>% 
     arrange(game_nr)
+
+# prepare roster data
+roster <- roster_data$rosters_2017 %>% 
+    type_convert()
+unique(roster$Club)
+
+roster$Club[roster$Club == "s.Oliver Würzurg"] <- "s.Oliver Würzburg"
+roster$Club[roster$Club == "Oettinger Rockets"] <- "Rockets"
+roster <- roster %>% 
+    filter(.,game_nr != 20881 & game_nr != 20885)
+unique(roster$Club)
+
+id <- id %>% 
+    filter(.,game_id != 20881 & game_id != 20885)
+
+pbp <- pbp %>% 
+    filter(.,game_nr != 55 & game_nr != 60)    
 
 id_merge <- bind_cols(id, unique(pbp$game_nr)) %>% 
     rename(nr = `...3`)
@@ -103,36 +80,63 @@ pbp <- pbp %>%
     filter(value != "Error finding file")
 
 #******************************************************************************#
-# Load roster files:----
-roster_files = paste0("Data/rosters_", 2008:2018, ".Rds")
-name <- gsub("\\.Rds$", "", roster_files) %>% 
-    gsub("Data/", "", .)
-roster_data <- lapply(roster_files, readRDS)
-names(roster_data) <- gsub("\\.Rds$", "", name)
-
-# prepare roster data
-roster <- roster_data$rosters_2018 %>% 
-    type_convert()
-roster$Club[roster$Club == "SYNTAINICS MBC"] <- "Mitteldeutscher BC"
-
-#******************************************************************************#
 # calculate starters: ----
-# delete some quarters as starters are not clear
-# pbp_starter <- pbp [-c(89409),]
-# 
-# pbp_starter <- pbp_starter %>% 
-#     mutate(game_q = game_id * quarter)
-
-
-roster2018 <- calc_starters(pbp,roster) 
-
-#' starter data is not perfect but I figured out what is wrong in 2018.
+#' starter data is far from perfect but I figured out what is wrong
 #' Have to do that for every year...
 #' 
 #' Still wrong are players who switch in timeouts! But I do not know how to
 #' solve this issue!!!
 #' 
 #' Anyway the corrections are done by hand and can be found in the excel file.
+
+# 2017
+roster2017 <- calc_starters(pbp,roster) 
+
+# pbp_starter <- pbp %>%
+#     mutate(game_q = game_id * quarter)
+# 
+# pbp_game_1 <- filter(pbp_starter,
+#                      game_q == 21126 * 4)
+# 
+# solve <- calc_starters(pbp_game_1,roster)
+# view(solve)
+# debugonce(calc_starters)
+# solve2 <- calc_starters(pbp_game_1,roster)
+
+starters2017 <- roster2017 %>% 
+    mutate(starter_Q5 = replace_na(starter_Q5,0))
+starters2017$starter_Q4[starters2017$game_nr == 20923 & starters2017$Player == "Lucca, Staiger"] <- 1
+starters2017$starter_Q3[starters2017$game_nr == 20978 & starters2017$Player == "Kruize, Pinkins"] <- 1
+starters2017$starter_Q5[starters2017$game_nr == 21030 & starters2017$Player == "Jamar, Abrams"] <- 1
+starters2017$starter_Q3[starters2017$game_nr == 21068 & starters2017$Player == "Thomas, Klepeisz"] <- 0
+starters2017$starter_Q3[starters2017$game_nr == 21067 & starters2017$Player == "Andrew, Warren"] <- 1
+starters2017$starter_Q4[starters2017$game_nr == 20987 & starters2017$Player == "Aleksej, Nikolic"] <- 1
+starters2017$starter_Q4[starters2017$game_nr == 21100 & starters2017$Player == "Anthony, Morse"] <- 1
+starters2017$starter_Q3[starters2017$game_nr == 21108 & starters2017$Player == "Kameron, Taylor"] <- 0
+starters2017$starter_Q4[starters2017$game_nr == 21108 & starters2017$Player == "Leon, Kratzer"] <- 0
+starters2017$starter_Q4[starters2017$game_nr == 21126 & starters2017$Player == "Skyler, Bowlin"] <- 1
+
+anzahl <- unique(starters2017$game_nr) %>% as_tibble() %>% nrow()
+print(anzahl)
+sum(starters2017$starter_Q1) / 10
+sum(starters2017$starter_Q2) / 10
+sum(starters2017$starter_Q3) / 10
+sum(starters2017$starter_Q4) / 10
+sum(starters2017$starter_Q5) / 10
+
+# 2018
+roster2017 <- calc_starters(pbp,roster) 
+
+# pbp_game_1 <- filter(pbp_starter,
+#                      game_q == 22072 * 4)
+# 
+# # source functions to use
+# source('functions/BBL_functions.R')
+# source('functions/pbp_actions.R')
+# solve <- calc_starters(pbp_game_1,roster)
+# view(solve)
+# debugonce(calc_starters)
+# solve2 <- calc_starters(pbp_game_1,roster)
 
 starters2018 <- roster2018 %>% 
     mutate(starter_Q5 = replace_na(starter_Q5,0),
@@ -151,21 +155,10 @@ sum(starters2018$starter_Q4) / 10
 sum(starters2018$starter_Q5) / 10
 sum(starters2018$starter_Q6) / 10
 
-# pbp_game_1 <- filter(pbp_starter,
-#                      game_q == 22072 * 4)
-# 
-# # source functions to use
-# source('functions/BBL_functions.R')
-# source('functions/pbp_actions.R')
-# solve <- calc_starters(pbp_game_1,roster)
-# view(solve)
-# debugonce(calc_starters)
-# solve2 <- calc_starters(pbp_game_1,roster)
-
 
 #******************************************************************************#
 # boxscores teams pg & totals: ----
-un <- unique(pbp$game_id)
+un <- unique(roster$game_nr)
 
 id_plus_teams <- tibble(id = un,
                         home_id = 0,
@@ -195,7 +188,17 @@ bx_teams <- bx_teams %>%
            G = W + L) %>% 
     rename(team = stats)
 
+# 2017
+unique(bx_teams$team)
+bx_teams$team[bx_teams$team == "Oettinger Rockets"] <- "Rockets"
+bx_teams$team[bx_teams$team == "s.Oliver Würzurg"] <- "s.Oliver Würzburg"
+
+# 2018
+unique(bx_teams$team)
 bx_teams$team[bx_teams$team == "SYNTAINICS MBC"] <- "Mitteldeutscher BC"
+
+
+
 
 
 team_totals <- bx_teams %>% 
@@ -265,11 +268,13 @@ view(z)
 
 #' therefore a data frame must be build which tells who is on the court and when
 #' this must be done for every single game!
+#' 
+#' CHANGE every year!
 play_time <- tibble()
 for (i in unique(pbp$game_id)) {
     a <- filter(pbp,
                 game_id == i)
-    b <- filter(starters2018,
+    b <- filter(starters2017,
                 game_nr == i)
     c <- playing_time(b,a)
     c$game_nr <- i
@@ -290,11 +295,11 @@ df <- play_time1 %>% group_by(player) %>%
     mutate(min_sec = round(Sum_sec / 60, digits = 2))
 
 
-n_distinct(roster2018$game_nr)
+n_distinct(roster2017$game_nr)
 
 n_distinct(roster$game_nr)
 
-setdiff(roster$game_nr, starters2018$game_nr)
+setdiff(roster$game_nr, starters2017$game_nr)
 
 #******************************************************************************#
 # Merge boxscore & playing time: ----
@@ -305,10 +310,25 @@ player_data <- merge(df_new, games_played,
              by = "player") %>% 
     relocate(G, .after = player)
 player_data$player <- trimws(player_data$player)
+
+# 2017
+player_data$player[player_data$player == "Miles, Jackson-C"] <- "Miles, Jackson-Cartwright"
+
+# 2018
 player_data$player[player_data$player == "Ra#Shad, James"] <- "Ra'Shad, James"
 
 #******************************************************************************#
 # Download Position etc. & merge: ----
+# 2017
+player_info <- pos_cm_kg(2017)
+player_info$player[player_info$player == "Miles, Jackson-C"] <- "Miles, Jackson-Cartwright"
+
+player_data_info<- merge(player_data,player_info,
+                         by = "player") %>% 
+    filter(., not_played == 0) %>% 
+    distinct(.,player,team, .keep_all = TRUE)
+
+# 2018
 player_info <- pos_cm_kg(2018)
 player_info$player[player_info$player == "Ra#Shad, James"] <- "Ra'Shad, James"
 
@@ -325,7 +345,8 @@ team_totals <- team_totals %>%
            opp_fga = opp_p2a + opp_p3a,
            opp_fgm = opp_p2m + opp_p3m,
            min = round(min / 60 *5)) %>% 
-    relocate(fga:opp_fgm, .before = opp_pts)
+    relocate(fga:opp_fgm, .before = opp_pts) %>% 
+    drop_na()
 
 #******************************************************************************#
 # boxscore team pg:----
@@ -379,8 +400,8 @@ player_totals <- merge(player_data_info, player_perT,
                        by = c("player","team"))
 #******************************************************************************#
 # save files:----
-saveRDS(object = player_pg, file = paste0("Data/player_pg_2018",".Rds"))
-saveRDS(object = player_totals, file = paste0("Data/player_totals_2018",".Rds"))
+saveRDS(object = player_pg, file = paste0("Data/player_pg_2017",".Rds"))
+saveRDS(object = player_totals, file = paste0("Data/player_totals_2017",".Rds"))
 
-saveRDS(object = team_pg, file = paste0("Data/team_pg_2018",".Rds"))
-saveRDS(object = team_totals, file = paste0("Data/team_totals_2018",".Rds"))
+saveRDS(object = team_pg, file = paste0("Data/team_pg_2017",".Rds"))
+saveRDS(object = team_totals, file = paste0("Data/team_totals_2017",".Rds"))

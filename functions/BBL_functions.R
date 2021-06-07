@@ -481,14 +481,27 @@ pos_cm_kg <- function(year){
 # calculate minutes played
 playing_time <- function(roster_game, pbp_game){
     roster_game <- roster_game %>% 
-        select(Player, starter_Q1:starter_Q6) %>% 
+        select(Player,starts_with("starter_Q")) %>% 
         mutate(Q1 = if_else(starter_Q1 == 1,Player,"0"),
                Q2 = if_else(starter_Q2 == 1,Player,"0"),
                Q3 = if_else(starter_Q3 == 1,Player,"0"),
-               Q4 = if_else(starter_Q4 == 1,Player,"0"),
-               Q5 = if_else(starter_Q5 == 1,Player,"0"),
-               Q6 = if_else(starter_Q6 == 1,Player,"0"))
+               Q4 = if_else(starter_Q4 == 1,Player,"0"))
     
+    if("starter_Q5" %in% colnames(roster_game))
+    {
+        roster_game <- roster_game %>% 
+            mutate(Q5 = if_else(starter_Q5 == 1,Player,"0"))
+    }
+    if("starter_Q6" %in% colnames(roster_game))
+    {
+        roster_game <- roster_game %>% 
+            mutate(Q6 = if_else(starter_Q6 == 1,Player,"0"))
+    }
+    if("starter_Q7" %in% colnames(roster_game))
+    {
+        roster_game <- roster_game %>% 
+            mutate(Q7 = if_else(starter_Q7 == 1,Player,"0"))
+    }
     
     pbp_merg <- tibble()
     for(viertel in 1:10){
