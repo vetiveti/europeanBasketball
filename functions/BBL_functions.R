@@ -481,7 +481,7 @@ pos_cm_kg <- function(year){
 # calculate minutes played
 playing_time <- function(roster_game, pbp_game){
     roster_game <- roster_game %>% 
-        select(Player,starts_with("starter_Q")) %>% 
+        select(Player,Club,starts_with("starter_Q")) %>% 
         mutate(Q1 = if_else(starter_Q1 == 1,Player,"0"),
                Q2 = if_else(starter_Q2 == 1,Player,"0"),
                Q3 = if_else(starter_Q3 == 1,Player,"0"),
@@ -528,18 +528,23 @@ playing_time <- function(roster_game, pbp_game){
         d <- c %>% 
             filter(aktion == "SUBST" | aktion == "START")
         
-        for (i in 2:nrow(d)) {
-            d[i,"V1"] <- ifelse(d$Player_1[i] != d$V1[i-1] ,d[i-1,"V1"], d$Player_2[i])
-            d[i,"V2"] <- ifelse(d$Player_1[i] != d$V2[i-1] ,d[i-1,"V2"], d$Player_2[i])
-            d[i,"V3"] <- ifelse(d$Player_1[i] != d$V3[i-1] ,d[i-1,"V3"], d$Player_2[i])
-            d[i,"V4"] <- ifelse(d$Player_1[i] != d$V4[i-1] ,d[i-1,"V4"], d$Player_2[i])
-            d[i,"V5"] <- ifelse(d$Player_1[i] != d$V5[i-1] ,d[i-1,"V5"], d$Player_2[i])
-            d[i,"V6"] <- ifelse(d$Player_1[i] != d$V6[i-1] ,d[i-1,"V6"], d$Player_2[i])
-            d[i,"V7"] <- ifelse(d$Player_1[i] != d$V7[i-1] ,d[i-1,"V7"], d$Player_2[i])
-            d[i,"V8"] <- ifelse(d$Player_1[i] != d$V8[i-1] ,d[i-1,"V8"], d$Player_2[i])
-            d[i,"V9"] <- ifelse(d$Player_1[i] != d$V9[i-1] ,d[i-1,"V9"], d$Player_2[i])
-            d[i,"V10"] <- ifelse(d$Player_1[i] != d$V10[i-1] ,d[i-1,"V10"], d$Player_2[i])
+        if(nrow(d) > 1){
+            for (i in 2:nrow(d)) {
+                d[i,"V1"] <- ifelse(d$Player_1[i] != d$V1[i-1] ,d[i-1,"V1"], d$Player_2[i])
+                d[i,"V2"] <- ifelse(d$Player_1[i] != d$V2[i-1] ,d[i-1,"V2"], d$Player_2[i])
+                d[i,"V3"] <- ifelse(d$Player_1[i] != d$V3[i-1] ,d[i-1,"V3"], d$Player_2[i])
+                d[i,"V4"] <- ifelse(d$Player_1[i] != d$V4[i-1] ,d[i-1,"V4"], d$Player_2[i])
+                d[i,"V5"] <- ifelse(d$Player_1[i] != d$V5[i-1] ,d[i-1,"V5"], d$Player_2[i])
+                d[i,"V6"] <- ifelse(d$Player_1[i] != d$V6[i-1] ,d[i-1,"V6"], d$Player_2[i])
+                d[i,"V7"] <- ifelse(d$Player_1[i] != d$V7[i-1] ,d[i-1,"V7"], d$Player_2[i])
+                d[i,"V8"] <- ifelse(d$Player_1[i] != d$V8[i-1] ,d[i-1,"V8"], d$Player_2[i])
+                d[i,"V9"] <- ifelse(d$Player_1[i] != d$V9[i-1] ,d[i-1,"V9"], d$Player_2[i])
+                d[i,"V10"] <- ifelse(d$Player_1[i] != d$V10[i-1] ,d[i-1,"V10"], d$Player_2[i])
+            }
+        }else{
+            data_new <- d
         }
+
         
         data_new <- d[- 1, ]
         
@@ -585,21 +590,21 @@ playing_time <- function(roster_game, pbp_game){
             start_q == end_q -2 & end_time == 600 ~ 600 + start_time - 0,
             start_q == end_q -3 & end_time == 600 ~ 600 + 600 + start_time - 0,
             # different quarter in regular playing time
-            start_q == (end_q -1) & end_time != 600 & start_q + end_q < 9 ~ start_time - 0 + 600 - end_time,
-            start_q == (end_q -2) & end_time != 600 & start_q + end_q < 9 ~ start_time - 0 + 600 + 600 - end_time,
-            start_q == (end_q -3) & end_time != 600 & start_q + end_q < 9 ~ start_time - 0 + 600 + 600 + 600 - end_time,
-            start_q == (end_q -4) & start_q + end_q < 9 ~ 600 + 600 + 600 + 600,
+            start_q == (end_q -1) & end_time != 600 & end_q <= 4 ~ start_time - 0 + 600 - end_time,
+            start_q == (end_q -2) & end_time != 600 & end_q <= 4 ~ start_time - 0 + 600 + 600 - end_time,
+            start_q == (end_q -3) & end_time != 600 & end_q <= 4 ~ start_time - 0 + 600 + 600 + 600 - end_time,
+            start_q == (end_q -4) & end_q <= 4 ~ 600 + 600 + 600 + 600,
             
-            start_q == 2 & end_q == 5 & end_time != 600 ~ start_time - 0 + 600 + 600 + 300 - end_time,
-            start_q == 3 & end_q == 5 & end_time != 600 ~ start_time - 0 + 600 + 300 - end_time,
-            start_q == 3 & end_q == 6 & end_time != 600 ~ start_time - 0 + 600 + 300 + 300 - end_time,
-            start_q == 4 & end_q == 5 & end_time != 600 ~ start_time - 0 + 300 - end_time,
-            start_q == 4 & end_q == 6 & end_time != 600 ~ start_time - 0 + 300 + 300 - end_time,
-            start_q == 4 & end_q == 7 & end_time != 600 ~ start_time - 0 + 300 + 300 + 300 - end_time,
+            start_q == 2 & end_q == 5  ~ start_time - 0 + 600 + 600 + 300 - end_time,
+            start_q == 3 & end_q == 5  ~ start_time - 0 + 600 + 300 - end_time,
+            start_q == 3 & end_q == 6  ~ start_time - 0 + 600 + 300 + 300 - end_time,
+            start_q == 4 & end_q == 5  ~ start_time - 0 + 300 - end_time,
+            start_q == 4 & end_q == 6  ~ start_time - 0 + 300 + 300 - end_time,
+            start_q == 4 & end_q == 7  ~ start_time - 0 + 300 + 300 + 300 - end_time,
             
             # different quarter in overtime
-            start_q == end_q -1 & end_time == 300 ~ start_time - 0,
-            start_q == end_q -2 & end_time == 300 ~ 300 + start_time - 0,
+            start_q == end_q -1 & end_time == 300 & start_q > 4 ~ start_time - 0,
+            start_q == end_q -2 & end_time == 300 & start_q > 4 ~ 300 + start_time - 0,
             start_q == 5 & end_q == 6 & end_time != 300 ~ start_time - 0 + 300 - end_time,
             start_q == 5 & end_q == 7 & end_time != 300 ~ start_time - 0 + 300 + 300 - end_time,
             start_q == 5 & end_q == 8 & end_time != 300 ~ start_time - 0 + 300 + 300 + 300 - end_time,
@@ -607,8 +612,13 @@ playing_time <- function(roster_game, pbp_game){
             start_q == 6 & end_q == 8 & end_time != 300 ~ start_time - 0 + 300 + 300 - end_time,
             start_q == 7 & end_q == 8 & end_time != 300 ~ start_time - 0 + 300 - end_time,
         ))
+    roster_for_merge <- select(roster_game,
+                               Player,Club)
+    time_merge <- merge(t_played,roster_for_merge,
+                        by.x = "player",
+                        by.y = "Player")
     
-    t_ply <- t_played %>%
+    t_ply <- time_merge %>%
         mutate(sec = ifelse(sec >= 0,sec,0)) %>% 
         group_by(player) %>%
         mutate(sec_total = sum(sec)) %>%
