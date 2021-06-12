@@ -614,7 +614,7 @@ player_perT <- player_perT %>%
 player_totals <- merge(player_data_info, player_perT,
                        by = c("player","team"))
 #******************************************************************************#
-# save files:----
+# Save files:----
 saveRDS(object = player_pg, file = paste0("Data/player_pg_2014",".Rds"))
 saveRDS(object = player_totals, file = paste0("Data/player_totals_2014",".Rds"))
 
@@ -622,16 +622,7 @@ saveRDS(object = team_pg, file = paste0("Data/team_pg_2014",".Rds"))
 saveRDS(object = team_totals, file = paste0("Data/team_totals_2014",".Rds"))
 
 #******************************************************************************#
-# load & merge files:----
-# Clear Console
-cat("\014")
-
-# remove Environment
-rm(list=ls())
-
-require(tidyverse, warn.conflicts = FALSE)
-
-
+# Load & merge files:----
 require(data.table)
 files <- list.files(path = './data', pattern ='team_totals')
 team_dat_list = lapply(paste0("Data/",files), function (x) data.table(readRDS(x)))
@@ -642,3 +633,50 @@ team_data_totals = rbindlist(team_dat_list, fill = TRUE, idcol="ID") %>%
     relocate(opp_fga, opp_fgm, .after = opp_min) %>% 
     select(-ID,-game_nr) %>% 
     mutate(opp_min = round(opp_min/60 * 5))
+team_data_totals$team[team_data_totals$team == "HAKRO Merlins Crailsheim"] <- "Crailsheim Merlins"
+team_data_totals$team[team_data_totals$team == "Brose Baskets"] <- "Brose Bamberg"
+team_data_totals$team[team_data_totals$team == "s.Oliver Baskets"] <- "s.Oliver Würzburg"
+
+files <- list.files(path = './data', pattern ='team_pg')
+team_dat_list = lapply(paste0("Data/",files), function (x) data.table(readRDS(x)))
+team_data_pg = rbindlist(team_dat_list, fill = TRUE, idcol="ID") %>% 
+    mutate(year = ID +2013) %>% 
+    relocate(team, year, G, W, L, everything()) %>% 
+    relocate(fga, fgm, .after = min) %>% 
+    relocate(opp_fga, opp_fgm, .after = opp_min) %>% 
+    select(-ID,-game_nr) %>% 
+    mutate(opp_min = round(opp_min/60 * 5))
+team_data_pg$team[team_data_pg$team == "HAKRO Merlins Crailsheim"] <- "Crailsheim Merlins"
+team_data_pg$team[team_data_pg$team == "Brose Baskets"] <- "Brose Bamberg"
+team_data_pg$team[team_data_pg$team == "s.Oliver Baskets"] <- "s.Oliver Würzburg"
+
+#
+files <- list.files(path = './data', pattern ='player_totals')
+player_dat_list = lapply(paste0("Data/",files), function (x) data.table(readRDS(x)))
+player_data_totals = rbindlist(player_dat_list, fill = TRUE, idcol="ID") %>% 
+    mutate(year = ID +2013) %>% 
+    relocate(player, year, everything()) %>% 
+    relocate(fga, fgm, .after = min_p) %>% 
+    select(-ID)
+player_data_totals$team[player_data_totals$team == "HAKRO Merlins Crailsheim"] <- "Crailsheim Merlins"
+player_data_totals$team[player_data_totals$team == "Brose Baskets"] <- "Brose Bamberg"
+player_data_totals$team[player_data_totals$team == "s.Oliver Baskets"] <- "s.Oliver Würzburg"
+
+files <- list.files(path = './data', pattern ='player_pg')
+player_dat_list = lapply(paste0("Data/",files), function (x) data.table(readRDS(x)))
+player_data_pg = rbindlist(player_dat_list, fill = TRUE, idcol="ID") %>% 
+    mutate(year = ID +2013) %>% 
+    relocate(player, year, everything()) %>% 
+    relocate(fga, fgm, .after = min_p) %>% 
+    select(-ID)
+player_data_pg$team[player_data_pg$team == "HAKRO Merlins Crailsheim"] <- "Crailsheim Merlins"
+player_data_pg$team[player_data_pg$team == "Brose Baskets"] <- "Brose Bamberg"
+player_data_pg$team[player_data_pg$team == "s.Oliver Baskets"] <- "s.Oliver Würzburg"
+
+#******************************************************************************#
+# Save data merged files:----
+saveRDS(object = player_data_pg, file = paste0("Data/player_data_pg",".Rds"))
+saveRDS(object = player_data_totals, file = paste0("Data/player_data_totals",".Rds"))
+
+saveRDS(object = team_data_pg, file = paste0("Data/team_data_pg",".Rds"))
+saveRDS(object = team_data_totals, file = paste0("Data/team_data_totals",".Rds"))
