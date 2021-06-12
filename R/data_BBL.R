@@ -43,15 +43,15 @@ names(pbp_data) <- gsub("\\.Rds$", "", name)
 #******************************************************************************#
 # Clean pbp data: ----
 # prepare game ids
-id <- game_id_data$identifiers_2014
+id <- game_id_data$identifiers_2018
 
 # prepare pbp data
-pbp <- pbp_data$pbp2014 %>% 
+pbp <- pbp_data$pbp2018 %>% 
     arrange(desc(spielzeit_sec )) %>% 
     arrange(game_nr)
 
 # prepare roster data
-roster <- roster_data$rosters_2014 %>% 
+roster <- roster_data$rosters_2018 %>% 
     type_convert()
 unique(roster$Club)
 
@@ -101,18 +101,18 @@ starters2014 <- roster2014 %>%
            starter_Q6 = replace_na(starter_Q6,0))
 
 #
-pbp_starter <- pbp %>%
-    mutate(game_q = game_id * quarter)
-
-pbp_game_1 <- filter(pbp_starter,
-                     game_q == 17251*1)
-
-solve <- calc_starters(pbp_game_1,roster)
-sum(solve$starter_Q1)
-view(solve)
-debugonce(calc_starters)
-solve2 <- calc_starters(pbp_game_1,roster)
-
+# pbp_starter <- pbp %>%
+#     mutate(game_q = game_id * quarter)
+# 
+# pbp_game_1 <- filter(pbp_starter,
+#                      game_q == 17251*1)
+# 
+# solve <- calc_starters(pbp_game_1,roster)
+# sum(solve$starter_Q1)
+# view(solve)
+# debugonce(calc_starters)
+# solve2 <- calc_starters(pbp_game_1,roster)
+#
 
 starters2014$starter_Q2[starters2014$game_nr == 17103 & starters2014$Player == "Kristian, Kuhn"] <- 0
 starters2014$starter_Q5[starters2014$game_nr == 17110 & starters2014$Player == "Janis, Strelnieks"] <- 1
@@ -157,16 +157,16 @@ sum(starters2014$starter_Q5) / 10
 roster2015 <- calc_starters(pbp,roster) 
 
 #
-pbp_starter <- pbp %>%
-    mutate(game_q = game_id * quarter)
-
-pbp_game_1 <- filter(pbp_starter,
-                     game_q == 18365*4)
-
-solve <- calc_starters(pbp_game_1,roster)
-view(solve)
-debugonce(calc_starters)
-solve2 <- calc_starters(pbp_game_1,roster)
+# pbp_starter <- pbp %>%
+#     mutate(game_q = game_id * quarter)
+# 
+# pbp_game_1 <- filter(pbp_starter,
+#                      game_q == 18365*4)
+# 
+# solve <- calc_starters(pbp_game_1,roster)
+# view(solve)
+# debugonce(calc_starters)
+# solve2 <- calc_starters(pbp_game_1,roster)
 #
 starters2015 <- roster2015 %>% 
     mutate(starter_Q5 = replace_na(starter_Q5,0),
@@ -221,11 +221,11 @@ roster2016 <- calc_starters(pbp,roster)
 # pbp_starter <- pbp %>%
 #     mutate(game_q = game_id * quarter)
 # 
-pbp_game_1 <- filter(pbp_starter,
-                     game_q == 19619 * 5)
-
-solve <- calc_starters(pbp_game_1,roster)
-view(solve)
+# pbp_game_1 <- filter(pbp_starter,
+#                      game_q == 19619 * 5)
+# 
+# solve <- calc_starters(pbp_game_1,roster)
+# view(solve)
 # debugonce(calc_starters)
 # solve2 <- calc_starters(pbp_game_1,roster)
 #
@@ -291,7 +291,7 @@ sum(starters2017$starter_Q4) / 10
 sum(starters2017$starter_Q5) / 10
 
 # 2018
-roster2017 <- calc_starters(pbp,roster) 
+roster2018 <- calc_starters(pbp,roster) 
 
 # pbp_game_1 <- filter(pbp_starter,
 #                      game_q == 22072 * 4)
@@ -303,6 +303,7 @@ roster2017 <- calc_starters(pbp,roster)
 # view(solve)
 # debugonce(calc_starters)
 # solve2 <- calc_starters(pbp_game_1,roster)
+#
 
 starters2018 <- roster2018 %>% 
     mutate(starter_Q5 = replace_na(starter_Q5,0),
@@ -313,7 +314,8 @@ starters2018$starter_Q1[starters2018$game_nr == 22274 & starters2018$Player == "
 starters2018$starter_Q4[starters2018$game_nr == 22326 & grepl("Brooks",starters2018$Player)] <- 1
 starters2018$starter_Q3[starters2018$game_nr == 22325 & starters2018$Player == "Elston, Turner"] <- 1
 
-6740 - sum(duplicated(starters2018$game_nr))
+anzahl <- unique(starters2018$game_nr) %>% as_tibble() %>% nrow()
+print(anzahl)
 sum(starters2018$starter_Q1) / 10
 sum(starters2018$starter_Q2) / 10
 sum(starters2018$starter_Q3) / 10
@@ -430,7 +432,7 @@ y <- filter(pbp,
 for (i in unique(y$game_id)) {
     a <- filter(y,
                 game_id == i)
-    b <- filter(starters2014,
+    b <- filter(starters2015,
                 game_nr == i)
     c <- playing_time(b,a)
     c$game_nr <- i
@@ -447,7 +449,7 @@ play_time <- tibble()
 for (i in unique(pbp$game_id)) {
     a <- filter(pbp,
                 game_id == i)
-    b <- filter(starters2014,
+    b <- filter(starters2018,
                 game_nr == i)
     c <- playing_time(b,a)
     c$game_nr <- i
@@ -464,14 +466,23 @@ play_time$player[play_time$player == "Jake, OBrien"] <- "Jake, O'Brien"
 play_time$player[play_time$player == "Chad, Topper"] <- "Chad, Toppert"
 play_time$player[play_time$player == "Nihad, Dedovic"] <- "Nihad, Djedovic"
 
+# 2015
+play_time$player[play_time$player == "Anthony, Di Leo"] <- "Anthony, DiLeo"
+play_time$player[play_time$player == "Joshua Patrick, Gasser"] <- "Joshua, Gasser"
+play_time$player[play_time$player == "Nicolò, Melli"] <- "Nicolo, Melli"
+
 # 2016
 play_time$player[play_time$player == "Jonas, Wohlfarth-B."] <- "Jonas, Wohlfarth-Bottermann"
 
 # 2017
 play_time$player[play_time$player == "Miles, Jackson-C"] <- "Miles, Jackson-Cartwright"
+play_time$player[play_time$player == "Darvin, Davis"] <- "Darwin, Davis"
+play_time$player[play_time$player == "E. J., Singler"] <- "E.J., Singler"
+play_time$player[play_time$player == "Jonas, Wohlfarth-B."] <- "Jonas, Wohlfarth-Bottermann"
 
 # 2018
 play_time$player[play_time$player == "Ra#Shad, James"] <- "Ra'Shad, James"
+play_time$Club[play_time$Club == "SYNTAINICS MBC"] <- "Mitteldeutscher BC"
 
 
 #
@@ -488,11 +499,9 @@ df <- play_time1 %>% group_by(player,Club) %>%
     mutate(min_sec = round(Sum_sec / 60, digits = 2))
 
 
-n_distinct(roster2014$game_nr)
-
+n_distinct(roster2018$game_nr)
 n_distinct(roster$game_nr)
-
-setdiff(roster$game_nr, starters2014$game_nr)
+setdiff(roster$game_nr, starters2018$game_nr)
 
 #******************************************************************************#
 # Merge boxscore & playing time: ----
@@ -519,6 +528,9 @@ player_info$player[player_info$player == "Nihad, Dedovic"] <- "Nihad, Djedovic"
 
 # 2015
 player_info <- pos_cm_kg(2015)
+player_info$player[player_info$player == "Anthony, Di Leo"] <- "Anthony, DiLeo"
+player_info$player[player_info$player == "Joshua Patrick, Gasser"] <- "Joshua, Gasser"
+player_info$player[player_info$player == "Nicolò, Melli"] <- "Nicolo, Melli"
 
 # 2016
 player_info <- pos_cm_kg(2016)
@@ -527,6 +539,9 @@ player_info$player[player_info$player == "Jonas, Wohlfarth-B."] <- "Jonas, Wohlf
 # 2017
 player_info <- pos_cm_kg(2017)
 player_info$player[player_info$player == "Miles, Jackson-C"] <- "Miles, Jackson-Cartwright"
+player_info$player[player_info$player == "Darvin, Davis"] <- "Darwin, Davis"
+player_info$player[player_info$player == "E. J., Singler"] <- "E.J., Singler"
+player_info$player[player_info$player == "Jonas, Wohlfarth-B."] <- "Jonas, Wohlfarth-Bottermann"
 
 # 2018
 player_info <- pos_cm_kg(2018)
@@ -601,15 +616,15 @@ player_totals <- merge(player_data_info, player_perT,
                        by = c("player","team"))
 #******************************************************************************#
 # save files:----
-saveRDS(object = player_pg, file = paste0("Data/player_pg_2015",".Rds"))
-saveRDS(object = player_totals, file = paste0("Data/player_totals_2015",".Rds"))
+saveRDS(object = player_pg, file = paste0("Data/player_pg_2018",".Rds"))
+saveRDS(object = player_totals, file = paste0("Data/player_totals_2018",".Rds"))
 
-saveRDS(object = team_pg, file = paste0("Data/team_pg_2015",".Rds"))
-saveRDS(object = team_totals, file = paste0("Data/team_totals_2015",".Rds"))
+saveRDS(object = team_pg, file = paste0("Data/team_pg_2018",".Rds"))
+saveRDS(object = team_totals, file = paste0("Data/team_totals_2018",".Rds"))
 
 #******************************************************************************#
 # load & merge files:----
-team_stats_files = paste0("Data/team_totals_", 2015:2018, ".Rds")
+team_stats_files = paste0("Data/team_totals_", 2014:2018, ".Rds")
 name <- gsub("\\.Rds$", "", team_stats_files) %>% 
     gsub("Data/", "", .)
 team_stats_data <- lapply(team_stats_files, readRDS)
