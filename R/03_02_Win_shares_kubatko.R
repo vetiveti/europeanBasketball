@@ -33,7 +33,7 @@ pace_lg <- 91.7
 
 
 #******************************************************************************#
-# calculating scoring possessions and individual offensive rating
+# calc. scoring possessions ----
 a <- a %>% 
     mutate(qAST = ((min_p / (min_t / 5)) * (1.14 * ((ast_t - ast_p) / fgm_t))) + 
                ((((ast_t / min_t) * min_p * 5 - ast_p) / ((fgm_t / min_t) * min_p * 5 - fgm_p)) * (1 - (min_p / (min_t / 5)))),
@@ -50,24 +50,21 @@ a <- a %>%
            ScPoss = (FG_Part + AST_Part + FT_Part) * (1 - (orb_t / Team_Scoring_Poss) * ORB_t_Weight * Team_Play_pct) + ORB_Part
     )
 
-############
-# Missed FG and Missed FT Possessions
-############
+#******************************************************************************#
+# Missed FG and Missed FT Possessions:----
 a <- a %>% 
     mutate(
         FGxPoss = (fga_p - fgm_p) * (1 - 1.07 * ORB_t_pct),
         FTxPoss = ifelse(fta_p>0, ((1 - (ftm_p / fta_p))^2) * 0.4 * fta_p, 0) 
     )
 
-############
-# Total Possessions
-############
+#******************************************************************************#
+# Total Possessions:----
 a <- a %>% 
     mutate(TotPoss = ScPoss + FGxPoss + FTxPoss + tov_p)
 
-############
-# Individual Points Produced
-############
+#******************************************************************************#
+# Individual Points Produced:----
 a <- a %>% 
     mutate(
         PProd_FG_Part = 2 * (fgm_p + 0.5 * p3m_p) * (1 - 0.5 * ((pts_p - ftm_p) / (2 * fga_p)) * qAST),
@@ -76,14 +73,13 @@ a <- a %>%
         
         PProd = (PProd_FG_Part + PProd_AST_Part + ftm_p) * (1 - (orb_t / Team_Scoring_Poss) * ORB_t_Weight * Team_Play_pct) + PProd_ORB_Part)
 
-############
-# Individual offensive rating
-############
+#******************************************************************************#
+# Individual offensive rating:----
 a <- a %>% 
     mutate(ORtg = 100 * (PProd / TotPoss))
 
 #******************************************************************************#
-# calculating individual defensive rating
+# Individual defensive stops----
 c <- a %>% 
     mutate(poss_t = 0.5 *
                ((fga_t + 0.4 * fta_t - 1.07 * (orb_t / (orb_t + opp_drb)) * (fga_t - fgm_t) + tov_t) +
@@ -105,9 +101,8 @@ c <- c %>%
         
     )
 
-############
-# Individual defensive rating
-############
+#******************************************************************************#
+# Individual defensive stops----
 c <- c %>% 
     mutate(
         Team_Defensive_Rating = 100 * (opp_pts / poss_t),
@@ -116,7 +111,7 @@ c <- c %>%
         DRtg = Team_Defensive_Rating + 0.2 * (100 * D_Pts_per_ScPoss * (1 - Stop_pct) - Team_Defensive_Rating)
     )
 
-####################################################################################
+#******************************************************************************#
 # offensive win shares:----
 d <- c %>% 
     mutate(marg_off = PProd - 0.92 * lg_avg_ppp * TotPoss,
@@ -124,7 +119,7 @@ d <- c %>%
            marg_ppw = 0.32 * lg_avg_ppg * (pace_t / pace_lg),
            owin_share = marg_off / marg_ppw)
 
-####################################################################################
+#******************************************************************************#
 # defensive win shares----
 e <- d %>% 
     mutate(
@@ -132,13 +127,12 @@ e <- d %>%
         dwin_share = marg_def / marg_ppw
     )
 
-####################################################################################
+#******************************************************************************#
 # total win shares----
 f <- e %>% 
     mutate(win_shares = owin_share + dwin_share)
 
 sum(f$win_shares)
 
-################################################################################
 win_shares <- select(f,
                     player, team, min_p, owin_share, dwin_share, win_shares)
