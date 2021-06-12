@@ -8,7 +8,6 @@ rm(list=ls())
 source('functions/BBL_functions.R')
 source('functions/pbp_actions.R')
 
-
 library(tidyverse, warn.conflicts = FALSE)
 library(zoo)
 
@@ -43,15 +42,15 @@ names(pbp_data) <- gsub("\\.Rds$", "", name)
 #******************************************************************************#
 # Clean pbp data: ----
 # prepare game ids
-id <- game_id_data$identifiers_2018
+id <- game_id_data$identifiers_2014
 
 # prepare pbp data
-pbp <- pbp_data$pbp2018 %>% 
+pbp <- pbp_data$pbp2014 %>% 
     arrange(desc(spielzeit_sec )) %>% 
     arrange(game_nr)
 
 # prepare roster data
-roster <- roster_data$rosters_2018 %>% 
+roster <- roster_data$rosters_2014 %>% 
     type_convert()
 unique(roster$Club)
 
@@ -449,7 +448,7 @@ play_time <- tibble()
 for (i in unique(pbp$game_id)) {
     a <- filter(pbp,
                 game_id == i)
-    b <- filter(starters2018,
+    b <- filter(starters2014,
                 game_nr == i)
     c <- playing_time(b,a)
     c$game_nr <- i
@@ -499,9 +498,9 @@ df <- play_time1 %>% group_by(player,Club) %>%
     mutate(min_sec = round(Sum_sec / 60, digits = 2))
 
 
-n_distinct(roster2018$game_nr)
+n_distinct(roster2014$game_nr)
 n_distinct(roster$game_nr)
-setdiff(roster$game_nr, starters2018$game_nr)
+setdiff(roster$game_nr, starters2014$game_nr)
 
 #******************************************************************************#
 # Merge boxscore & playing time: ----
@@ -616,23 +615,30 @@ player_totals <- merge(player_data_info, player_perT,
                        by = c("player","team"))
 #******************************************************************************#
 # save files:----
-saveRDS(object = player_pg, file = paste0("Data/player_pg_2018",".Rds"))
-saveRDS(object = player_totals, file = paste0("Data/player_totals_2018",".Rds"))
+saveRDS(object = player_pg, file = paste0("Data/player_pg_2014",".Rds"))
+saveRDS(object = player_totals, file = paste0("Data/player_totals_2014",".Rds"))
 
-saveRDS(object = team_pg, file = paste0("Data/team_pg_2018",".Rds"))
-saveRDS(object = team_totals, file = paste0("Data/team_totals_2018",".Rds"))
+saveRDS(object = team_pg, file = paste0("Data/team_pg_2014",".Rds"))
+saveRDS(object = team_totals, file = paste0("Data/team_totals_2014",".Rds"))
 
 #******************************************************************************#
 # load & merge files:----
-team_stats_files = paste0("Data/team_totals_", 2014:2018, ".Rds")
-name <- gsub("\\.Rds$", "", team_stats_files) %>% 
-    gsub("Data/", "", .)
-team_stats_data <- lapply(team_stats_files, readRDS)
-names(team_stats_data) <- gsub("\\.Rds$", "", name)
+# Clear Console
+cat("\014")
 
-team_stats <- as_tibble(team_stats_data)
+# remove Environment
+rm(list=ls())
+
+require(tidyverse, warn.conflicts = FALSE)
+
 
 require(data.table)
 files <- list.files(path = './data', pattern ='team_totals')
-dat_list = lapply(paste0("Data/",files), function (x) data.table(readRDS(x)))
-dat = rbindlist(dat_list, fill = TRUE, idcol="ID")
+team_dat_list = lapply(paste0("Data/",files), function (x) data.table(readRDS(x)))
+team_data_totals = rbindlist(team_dat_list, fill = TRUE, idcol="ID") %>% 
+    mutate(year = ID +2013) %>% 
+    relocate(team, year, G, W, L, everything()) %>% 
+    relocate(fga, fgm, .after = min) %>% 
+    relocate(opp_fga, opp_fgm, .after = opp_min) %>% 
+    select(-ID,-game_nr) %>% 
+    mutate(opp_min = round(opp_min/60 * 5))
