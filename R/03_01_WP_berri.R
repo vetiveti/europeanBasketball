@@ -8,30 +8,17 @@ rm(list=ls())
 library(tidyverse, warn.conflicts = FALSE)
 
 # load data
-player_totals <- readRDS("Data/player_totals_2018.Rds")
-player_pg <- readRDS("Data/player_pg_2018.Rds")
+player_totals <- readRDS("Data/player_data_totals.Rds")
+player_pg <- readRDS("Data/player_data_pg.Rds")
 
-team_totals <- readRDS("Data/team_totals_2018.Rds")
-team_pg <- readRDS("Data/team_pg_2018.Rds")
+team_totals <- readRDS("Data/team_data_totals.Rds")
+team_pg <- readRDS("Data/team_data_pg.Rds")
 
 #******************************************************************************#
 # WINS PRODUCED:----
-# Data preparation:----
-# preparing and setting up team data
-player.panel_perTeam_fil <- player.panel_totals_bref_extra %>%
-    filter(., slugTeamBREF != "TOT") %>% 
-    filter(., year >=1988 & year <= 2011 )
-
-team_perGame <- team.panel_perGame_bref %>% 
-    filter(.,year >=1988 & year <= 2011 )
-
-team_totals <- team.panel_totals_bref %>% 
-    filter(., year >=1988 & year <= 2011 )
-
-#******************************************************************************#
 # Descriptive statistics:----
 deskriptive_statistics <- summary(team_totals)
-deskriptive_statistics_pg <- summary(team_perGame)
+deskriptive_statistics_pg <- summary(team_pg)
 deskriptive_statistics_pg
 
 #******************************************************************************#
@@ -107,12 +94,11 @@ team_pg <- team_pg %>%
            marg_val_STL = - marg_val_Opp_PA,
            marg_val_TOV = - marg_val_PE
     )
-#' need to calculate block value across multiple years. Right now not possible 
-#' build an extra function later on and use below:
+# something is wrong here:----
 # marginal value BLK
 blk_on_opp_FGM <- lm(data = team_pg , opp_fgm ~ blk + opp_fga +
-                         factor(team)) #+
-                         #factor(year))
+                         factor(team) +
+                         factor(year))
 summary(blk_on_opp_FGM)
 
 team_pg <- team_pg %>% 
@@ -176,7 +162,7 @@ player_totals <- player_totals %>%
     )
 
 wins_produced <- player_totals %>% 
-    select(player,team,G, min_p,Pos.,total_production) %>%
+    select(player,team,year,G, min_p,Pos.,total_production) %>%
     mutate(P48 = (ifelse(min_p>0,(total_production/min_p) * 40, 0))) %>%
     arrange(player)
 
@@ -199,10 +185,10 @@ DREBMATE = 0.504
 # calculate how many DREB's a team gathers without the player of interest and adjust
 # according to minutes played
 DREB_adjustment <- merge(player_totals, team_totals,
-                         by = c("team"),
+                         by = c("team","year"),
                          all = TRUE) %>%
     arrange(player) %>%
-    select(player,team,min_p,min,drb.x,drb.y)
+    select(player,team,year,min_p,min,drb.x,drb.y)
 
 DREB_adjustment <- DREB_adjustment %>%
     mutate(TDREBPM =(drb.y - drb.x) / (min - min_p))
@@ -221,7 +207,7 @@ DREB_adjustment <- DREB_adjustment %>%
 # Step 2.4
 # sum across all team members and id
 DREB_adjustment <- DREB_adjustment %>%
-    group_by(team) %>%
+    group_by(team,year) %>%
     mutate(TDREB_totalloss = sum(TDREB_ind_loss)) %>%
     ungroup()
 
@@ -229,7 +215,7 @@ DREB_adjustment <- DREB_adjustment %>%
 # Now multiply this by % of defensive rebounds from each player per team and id
 # this yields how many rebounds a player grabbed from his teammates
 DREB_adjustment <- DREB_adjustment %>%
-    group_by(team) %>%
+    group_by(team,year) %>%
     mutate(rebound_percentage = (drb.x / drb.y)) %>%
     mutate(eins = sum(rebound_percentage)) %>%
     ungroup()
@@ -254,12 +240,12 @@ wins_produced <- wins_produced %>%
 #                    teammate's adjusted field goal percentage)
 # Disclaimer: is this really the same value for all teams across time?!
 assist_adjustment <- merge(player_totals, team_totals,
-                           by.x = c("team"),
-                           by.y = c("team"),
+                           by.x = c("team","year"),
+                           by.y = c("team","year"),
                            all = TRUE) %>%
     relocate(player, .before = team) %>% 
     arrange(player) %>%
-    select(1:2,min,min_p,ast.x,ast.y, fga.x)
+    select(1:2,year,min,min_p,ast.x,ast.y, fga.x)
 
 # Step 3.1 - Calculate Teammate's assist per minute
 assist_adjustment <- assist_adjustment %>%
@@ -282,7 +268,7 @@ assist_adjustment <- assist_adjustment %>%
 
 # Step 3.5 - Sum across all players of team and year and compute assist percentages for every player
 assist_adjustment <- assist_adjustment %>%
-    group_by(team) %>%
+    group_by(team,year) %>%
     mutate(ast_total_val = sum(ast_val_team)) %>%
     mutate(ast_percentage = ast.x / ast.y) %>%
     mutate(eins = sum(ast_percentage)) %>%
@@ -304,16 +290,16 @@ wins_produced <- wins_produced %>%
 # Step 4: Team defense adjustments:----
 # Calculating Team Turnovers
 team_adjustment <- player_totals %>%
-    group_by(team) %>%
+    group_by(team,year) %>%
     mutate(TTOV = sum(tov)) %>%
     ungroup()
 
 team_adjustment <- merge(team_adjustment, team_totals,
-                         by.x = c("team"),
-                         by.y = c("team"),
+                         by.x = c("team","year"),
+                         by.y = c("team","year"),
                          all = TRUE) %>% 
     arrange(player) %>%
-    select(1:2,min,min_p,opp_p3m,opp_p2m,opp_tov,REBTM,TTOV,blk.y,stl.y,tov.y) %>% 
+    select(1:3,min,min_p,opp_p3m,opp_p2m,opp_tov,REBTM,TTOV,blk.y,stl.y,tov.y) %>% 
     mutate(TeamTOV = tov.y - TTOV)
 
 team_adjustment <- team_adjustment %>%
@@ -329,7 +315,7 @@ team_adjustment$Team_adj <- (((opp_p3m * marg_values$opp_3FGM +
 detach(team_adjustment)
 
 team_adjustment <- team_adjustment %>%
-    #group_by(year) %>%
+    group_by(year) %>%
     mutate(Team_adj_avg = mean(Team_adj)) %>%
     mutate(Team_defense_adj = Team_adj - Team_adj_avg) %>%
     ungroup()
@@ -342,17 +328,17 @@ wins_produced <- wins_produced %>%
 #******************************************************************************#
 #### Step 5: Position adjustment:----
 pos_avg_1 <- wins_produced %>% 
-    group_by(player) %>%
+    group_by(player,year) %>%
     filter(., min_p/G > 10 & G > 7) %>% 
     summarise_at("P48Adj3",mean)
 
 pos_avg_2 <- merge(wins_produced,pos_avg_1,
-                         by = c("player"),
+                         by = c("player","year"),
                          all = TRUE)
 
 pos_avg_3 <- pos_avg_2 %>% 
     filter(., min_p/G > 10 & G > 7) %>%
-    group_by(Pos.) %>% 
+    group_by(Pos.,year) %>% 
     mutate(pos_mean = mean(P48Adj3.y)) %>% 
     ungroup()
 
@@ -364,18 +350,16 @@ ggplot(data = pos_avg_3, aes(x = min_p, y = P48Adj3.y)) +
 test <- lm(P48Adj3.y ~ min_p, data = pos_avg_3)
 summary(test)
 
-pos_avg_4 <- select(pos_avg_3, Pos., pos_mean)
+pos_avg_4 <- select(pos_avg_3, Pos., pos_mean,year)
 pos_avg_5 <- pos_avg_4 %>% 
-    #group_by(year) %>% 
+    group_by(year) %>% 
     dplyr::distinct(., Pos., .keep_all = T) %>% 
     ungroup
 print(pos_avg_5)
 
 pos_avg_final <- merge(wins_produced, pos_avg_5,
-                             by.x = c("Pos."),
-                             by.y = c("Pos.")
-) %>% 
-    arrange(player)
+                             by = c("Pos.","year"))%>% 
+    arrange(year,player)
 
 wins_produced <- pos_avg_final
 
@@ -387,6 +371,16 @@ mutate(P48Adj4 =P48Adj3 - pos_mean) %>%
 
 #******************************************************************************#
 #### Comparison:----
+wins_for_merge <- team_totals %>% 
+    select(team,year,G,W,L)
+
 win_est <- wins_produced %>% 
-    group_by(team) %>% 
+    group_by(team,year) %>% 
     summarise(win_est = sum(PROD_adj_total))
+
+wins<- merge(wins_for_merge,win_est,
+             by = c("year","team"))
+
+wins <- wins %>% 
+    mutate(diff = W - win_est,
+           abs_diff = abs(diff))

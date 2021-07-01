@@ -1,4 +1,4 @@
-#### function for possible download queries ####
+# function for possible download queries---
 query <- function(query_type = "general", type = "team"){
   a <- tibble(typeQuery = c("splits", "splits", "general", "general", "defense", "defense", "clutch", "clutch",
                             "hustle", "hustle", "shots", "shots", "shot locations", "shot locations"),
@@ -17,7 +17,7 @@ query <- function(query_type = "general", type = "team"){
   
 }
 
-# parameters
+# parameters----
 std_parameter <- function(MeasureType = "Base",
                           PerMode = "Totals",
                           DateFrom = '',
@@ -83,7 +83,7 @@ parameters <-  list(MeasureType,PerMode,PlusMinus,PaceAdj,Rank,SeasonType,Outcom
 parameters
 
 }
-##### download function for NBA.com ####
+# download function for NBA.com----
 dl <- function (url = "https://stats.nba.com/stats/leaguegamelog?Counter=1000&Season=2019-20&Direction=DESC&LeagueID=00&PlayerOrTeam=P&SeasonType=Regular%20Season&Sorter=DATE") 
 {
   URL <- URL %>% as.character() %>% URLencode()

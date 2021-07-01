@@ -70,3 +70,17 @@ safer_results <- possibly(get_pbp, otherwise = as_tibble("Error finding file"))
 #     saveRDS(object = get(paste0("rosters_",j)),file = paste0("Data/rosters_",j,".Rds"))
 # }
 
+#******************************************************************************#
+# Download Coach data:----
+
+jahre <- 2017:2018
+coach_data1 <- tibble()
+for (i in jahre) {
+    year <- i
+    coaches_cur <- get_coaches(year)
+    coach_data1 <- bind_rows(coach_data1,coaches_cur)
+}
+
+coaches <- bind_rows(coach_data,coach_data1)
+
+saveRDS(object = coaches, file = paste0("Data/coach_data_bbl.Rds"))

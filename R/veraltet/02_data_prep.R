@@ -81,15 +81,16 @@ pbp <- pbp %>%
     filter(value != "Error finding file")
 
 #******************************************************************************#
+# Save cleaned pbp files:----
+saveRDS(object = player_data_pg, file = paste0("Data/player_data_pg",".Rds"))
+
+#******************************************************************************#
+#******************************************************************************#
 # calculate starters: ----
-#' starter data is far from perfect but I figured out what is wrong
-#' Have to do that for every year...
-#' 
+#' starter data is far from perfect but I figured out what is wrong.
 #' Still wrong are players who switch in timeouts! But I do not know how to
 #' solve this issue!!!
-#' 
 #' Anyway the corrections are done by hand and can be found in the excel file.
-#' 
 
 # 2014
 roster2014 <- calc_starters(pbp,roster) 
@@ -321,7 +322,6 @@ sum(starters2018$starter_Q3) / 10
 sum(starters2018$starter_Q4) / 10
 sum(starters2018$starter_Q5) / 10
 sum(starters2018$starter_Q6) / 10
-
 
 #******************************************************************************#
 # boxscores teams pg & totals: ----

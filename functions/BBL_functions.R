@@ -397,7 +397,7 @@ pos_cm_kg <- function(year){
                                  browser=c("firefox"))
     rm <- remDr$client
     rm$navigate("https://www.easycredit-bbl.de/de/saison/tabelle/gesamt/") 
-    Sys.sleep(1)
+    Sys.sleep(2)
     
     base <- "//select[@id='saison']/option[@value="
     year_id <- glue::glue('{base}', "\'",
@@ -427,6 +427,7 @@ pos_cm_kg <- function(year){
     b <- paste0(year,"-",year+1)
     a <- grepl(b,team_urls)
     team_urls <- team_urls[a]
+    Sys.sleep(2)
     
     all_team_rosters <- tibble()
     for (i in 1:length(team_urls)) {
@@ -625,4 +626,180 @@ playing_time <- function(roster_game, pbp_game){
         ungroup() %>%
         distinct(player, .keep_all = TRUE) %>%
         mutate(min_sec_played = lubridate::seconds_to_period(sec_total))
+}
+
+# RAPM data frame
+RAPM_data_frame <- function(roster_game, pbp_game){
+    roster_game <- roster_game %>% 
+        select(Player,Club,starts_with("starter_Q")) %>% 
+        mutate(Q1 = if_else(starter_Q1 == 1,Player,"0"),
+               Q2 = if_else(starter_Q2 == 1,Player,"0"),
+               Q3 = if_else(starter_Q3 == 1,Player,"0"),
+               Q4 = if_else(starter_Q4 == 1,Player,"0"))
+    
+    if("starter_Q5" %in% colnames(roster_game))
+    {
+        roster_game <- roster_game %>% 
+            mutate(Q5 = if_else(starter_Q5 == 1,Player,"0"))
+    }
+    if("starter_Q6" %in% colnames(roster_game))
+    {
+        roster_game <- roster_game %>% 
+            mutate(Q6 = if_else(starter_Q6 == 1,Player,"0"))
+    }
+    if("starter_Q7" %in% colnames(roster_game))
+    {
+        roster_game <- roster_game %>% 
+            mutate(Q7 = if_else(starter_Q7 == 1,Player,"0"))
+    }
+    
+    pbp_merg <- tibble()
+    for(viertel in 1:10){
+        assign(paste0("quarter_",viertel),subset(pbp_game, quarter == viertel))
+        if(nrow(subset(pbp_game, quarter == viertel)) == 0){break}
+        
+        b <- roster_game %>% 
+            select(paste0("Q",viertel)) %>% 
+            filter(. != "0") %>% 
+            t(.) %>% 
+            as_tibble()
+        
+        c <- bind_cols(pbp_game,b) %>% 
+            filter(quarter == viertel)
+        
+        for (j in 2:nrow(c)) {
+            if(c$aktion[j] == "SUBST"){
+            }else{
+                c[j,c("V1","V2","V3","V4","V5","V6","V7","V8","V9","V10")] <- NA
+            }
+        }
+        
+        
+        d <- c %>% 
+            filter(aktion == "SUBST" | aktion == "START")
+        
+        if(nrow(d) > 1){
+            for (i in 2:nrow(d)) {
+                d[i,"V1"] <- ifelse(d$Player_1[i] != d$V1[i-1] ,d[i-1,"V1"], d$Player_2[i])
+                d[i,"V2"] <- ifelse(d$Player_1[i] != d$V2[i-1] ,d[i-1,"V2"], d$Player_2[i])
+                d[i,"V3"] <- ifelse(d$Player_1[i] != d$V3[i-1] ,d[i-1,"V3"], d$Player_2[i])
+                d[i,"V4"] <- ifelse(d$Player_1[i] != d$V4[i-1] ,d[i-1,"V4"], d$Player_2[i])
+                d[i,"V5"] <- ifelse(d$Player_1[i] != d$V5[i-1] ,d[i-1,"V5"], d$Player_2[i])
+                d[i,"V6"] <- ifelse(d$Player_1[i] != d$V6[i-1] ,d[i-1,"V6"], d$Player_2[i])
+                d[i,"V7"] <- ifelse(d$Player_1[i] != d$V7[i-1] ,d[i-1,"V7"], d$Player_2[i])
+                d[i,"V8"] <- ifelse(d$Player_1[i] != d$V8[i-1] ,d[i-1,"V8"], d$Player_2[i])
+                d[i,"V9"] <- ifelse(d$Player_1[i] != d$V9[i-1] ,d[i-1,"V9"], d$Player_2[i])
+                d[i,"V10"] <- ifelse(d$Player_1[i] != d$V10[i-1] ,d[i-1,"V10"], d$Player_2[i])
+            }
+        }else{
+            data_new <- d
+        }
+        
+        
+        data_new <- d[- 1, ]
+        
+        
+        
+        f <- bind_rows(c,data_new) %>%
+            group_by(nummer_aktion, quarter) %>%
+            filter(row_number() == n()) %>%
+            ungroup() %>%
+            arrange(nummer_aktion)
+        
+        pbp_merg <- bind_rows(pbp_merg,f)
+    }
+    
+    
+    pbp_merge <- na.locf(pbp_merg, na.rm = FALSE)
+    
+    return(pbp_merge)
+}
+
+# Coach data
+get_coaches <- function(year){
+    remDr <- RSelenium::rsDriver(verbose = T,
+                                 remoteServerAddr = "localhost",
+                                 port = 4444L,
+                                 browser=c("firefox"))
+    rm <- remDr$client
+    rm$navigate("https://www.easycredit-bbl.de/de/saison/tabelle/gesamt/") 
+    Sys.sleep(2)
+    
+    base <- "//select[@id='saison']/option[@value="
+    year_id <- glue::glue('{base}', "\'",
+                          year,"\']") %>% as.character()
+    
+    option_season <- rm$findElement(using = 'xpath', year_id)
+    option_season$clickElement()
+    
+    page <- unlist(rm$getPageSource())
+    
+    page <- page %>%
+        readr::read_lines() %>%
+        str_replace_all("<!--|-->", "") %>%
+        str_trim() %>%
+        stringi::stri_trans_general("ASCII-Latin") %>%
+        str_c(collapse = "") %>%
+        xml2::read_html()
+    
+    xml_tables <- page %>%
+        rvest::html_nodes(css = "[href*='/de/easycredit-bbl/historie/teams/t/']")
+    
+    team_urls <- xml_tables %>%
+        rvest::html_attr("href")
+    
+    team_urls<- unique(team_urls)
+    
+    b <- paste0(year,"-",year+1)
+    a <- grepl(b,team_urls)
+    team_urls <- team_urls[a]
+    Sys.sleep(2)
+    
+    coaches <- tibble()
+    team <- tibble()
+    for (i in 1:length(team_urls)) {
+        current_team_url <- paste0("https://www.easycredit-bbl.de",team_urls[i])
+        rm$navigate(current_team_url)
+        Sys.sleep(2)
+        
+        page <- unlist(rm$getPageSource())
+        page <- page %>%
+            readr::read_lines() %>%
+            str_replace_all("<!--|-->", "") %>%
+            str_trim() %>%
+            stringi::stri_trans_general("ASCII-de") %>%
+            str_c(collapse = "") %>%
+            xml2::read_html()
+        
+        team_name <- page %>% 
+            rvest::html_node(css = "[class = 'klubheader']") %>%
+            rvest::html_text()
+        
+        current_team <- page %>%
+            rvest::html_node(css = "[class = 'boxcol3']") %>%
+            rvest::html_text()
+        
+        coaches <- rbind(coaches,current_team)
+        team <- rbind(team,team_name)
+    }
+    
+    rm$close()
+    # stop the selenium server
+    remDr$server$stop()
+    base::rm(remDr)
+    gc()
+    system("taskkill /im java.exe /f", intern=FALSE, ignore.stdout=FALSE)
+    
+    
+    coach <- cbind(coaches,team)
+    colnames(coach) <- c("coach","team")
+    
+    coach$coach <- gsub("Headcoach","",coach$coach)
+    coach$team <- gsub("Platz:.*",'',coach$team)
+    
+    coach$year <- year
+    coach$coach <- trimws(coach$coach)
+    coach$team <- trimws(coach$team)
+    
+    return(coach)
 }
