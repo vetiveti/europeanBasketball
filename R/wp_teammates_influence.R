@@ -20,8 +20,7 @@ player_totals <- readRDS("Data/player_data_totals.Rds")
 player_pg <- readRDS("Data/player_data_pg.Rds")
 
 # load coach data
-load(file = "data/coach_data.rda", .GlobalEnv)
-
+coach_data <- readRDS("Data/coach_data_bbl.Rds")
 #******************************************************************************#
 # Data preparation:----
 # preparing and setting up team data
@@ -34,9 +33,9 @@ team_pg <- team_pg %>%
 team_totals <- team_totals %>% 
   filter(., year >=1988 & year <2019)
 
-# hab ich noch nicht----
-# coach_data <- coach_data %>%
-#   filter(., year >=1988 & year <2012)
+
+coach_data <- coach_data %>%
+  filter(., year >=1988 & year <2019)
 
 #******************************************************************************#
 # Defensive rebounds:----
@@ -192,10 +191,10 @@ coaches <- coach_data %>%
 
 i <- 0
 a <- NULL
-try(for (x in coaches$nameCoach) {
+try(for (x in coaches$coach) {
   i <- i +1
   if (coaches$team[i] == coaches$team[i+1]) {
-    if (coaches$nameCoach[i] == coaches$nameCoach[i+1]) {
+    if (coaches$coach[i] == coaches$coach[i+1]) {
       a[i+1] = 0
     } else {
       a[i+1] = 1
@@ -219,22 +218,21 @@ df <- merge(stats5,coaches1,
 
 # filter players out how have not played more than 20 games and have at least 12 min/pg
 df_filtered <- df %>% 
-  filter(gp_p >= 20,
-        min_p/gp_p >= 12)
+  filter(gp >= 15,
+        min_p/gp >= 10)
   
 #******************************************************************************#
-# for dreb
-# OLS
+# OLS DRB:----
 regres <- lm(data = df,
-             PDREPM ~ pdrebpm_lag + age + age_2 + pct_last2 + factor(pos)
+             PDREPM ~ pdrebpm_lag + age + age_2 + pct_last2 + factor(Pos.)
              + factor(new_coach) + factor(new_team) + factor(year) + rstab_last2 + TDREBPM)
 summary(regres)
 
 reg1 <- lm(data = df_filtered,
-             PDREPM ~ pdrebpm_lag + age + age_2 + pct_last2 + factor(pos)
+             PDREPM ~ pdrebpm_lag + age + age_2 + pct_last2 + factor(Pos.)
              + factor(new_coach) + factor(new_team) + factor(year) + rstab_last2 + TDREBPM)
 summary(reg1)
-tdrebpm_reg <- summary(reg1)$coefficients [35,]
+tdrebpm_reg <- summary(reg1)$coefficients ["TDREBPM",]
 
 # only history:
 reg2 <- lm(data = df_filtered,
@@ -242,114 +240,115 @@ reg2 <- lm(data = df_filtered,
 summary(reg2)
 
 #******************************************************************************#
-# for fga
-# OLS
+# OLS FGA:----
 reg_fga1 <- lm(data = df,
-             PFGAPM ~ pfgapm_lag + age + age_2 + pct_last2 + factor(pos)
+             PFGAPM ~ pfgapm_lag + age + age_2 + pct_last2 + factor(Pos.)
              + factor(new_coach) + factor(new_team) + factor(year) + rstab_last2 + TFGAPM)
 summary(reg_fga1)
 
 # OLS
 reg_fga2 <- lm(data = df_filtered,
-               PFGAPM ~ pfgapm_lag + age + age_2 + pct_last2 + factor(pos)
+               PFGAPM ~ pfgapm_lag + age + age_2 + pct_last2 + factor(Pos.)
                + factor(new_coach) + factor(new_team) + factor(year) + rstab_last2 + TFGAPM)
 summary(reg_fga2)
 
-tfgapm_reg <- summary(reg_fga2)$coefficients[35,]
+tfgapm_reg <- summary(reg_fga2)$coefficients["TFGAPM",]
+print(tfgapm_reg)
 
 #******************************************************************************#
-# for oreb
-# OLS
+# OLS ORB
 reg_oreb1 <- lm(data = df,
-               POREPM ~ porebpm_lag + age + age_2 + pct_last2 + factor(pos)
+               POREPM ~ porebpm_lag + age + age_2 + pct_last2 + factor(Pos.)
                + factor(new_coach) + factor(new_team) + factor(year) + rstab_last2 + TOREBPM)
 summary(reg_oreb1)
 
 # OLS
 reg_oreb2 <- lm(data = df_filtered,
-               POREPM ~ porebpm_lag + age + age_2 + pct_last2 + factor(pos)
+               POREPM ~ porebpm_lag + age + age_2 + pct_last2 + factor(Pos.)
                + factor(new_coach) + factor(new_team) + factor(year) + rstab_last2 + TOREBPM)
 summary(reg_oreb2)
 
-torebpm_reg <- summary(reg_oreb2)$coefficients[35,]
+torebpm_reg <- summary(reg_oreb2)$coefficients["TOREBPM",]
+print(torebpm_reg)
 
 #******************************************************************************#
-# for ast
-# OLS
+# OLS AST:----
 reg_ast1 <- lm(data = df,
-               PASTPM ~ pastpm_lag + age + age_2 + pct_last2 + factor(pos)
+               PASTPM ~ pastpm_lag + age + age_2 + pct_last2 + factor(Pos.)
                + factor(new_coach) + factor(new_team) + factor(year) + rstab_last2 + TASTPM)
 summary(reg_ast1)
 
 # OLS
 reg_ast2 <- lm(data = df_filtered,
-               PASTPM ~ pastpm_lag + age + age_2 + pct_last2 + factor(pos)
+               PASTPM ~ pastpm_lag + age + age_2 + pct_last2 + factor(Pos.)
                + factor(new_coach) + factor(new_team) + factor(year) + rstab_last2 + TASTPM)
 summary(reg_ast2)
+TASTPM_reg <- summary(reg_ast2)$coefficients["TASTPM",]
+print(TASTPM_reg)
 
 #******************************************************************************#
-# for effective field goal percentage with respect to assists
-# OLS
+# OLS for effective field goal percentage with respect to assists:----
 reg_efg_pct1 <- lm(data = df,
-               eff_fg_pct_p ~ eff_fg_pct_lag + age + age_2 + pct_last2 + factor(pos)
+               eff_fg_pct_p ~ eff_fg_pct_lag + age + age_2 + pct_last2 + factor(Pos.)
                + factor(new_coach) + factor(new_team) + factor(year) + rstab_last2 + eff_fg_pct_t + TASTPM)
 summary(reg_efg_pct1)
 
 # OLS
 reg_efg_pct2 <- lm(data = df_filtered,
-               eff_fg_pct_p ~ eff_fg_pct_lag + age + age_2 + pct_last2 + factor(pos)
+               eff_fg_pct_p ~ eff_fg_pct_lag + age + age_2 + pct_last2 + factor(Pos.)
                + factor(new_coach) + factor(new_team) + factor(year) + rstab_last2 + TASTPM)
 summary(reg_efg_pct2)
 
-tastpm_reg <- summary(reg_efg_pct2)$coefficients[35,]
+tastpm_reg <- summary(reg_efg_pct2)$coefficients["TASTPM",]
+print(tastpm_reg)
 
 #******************************************************************************#
-# for steals
-# OLS
+# OLS steals:----
 reg_stl1 <- lm(data = df,
-                   PSTLPM ~ pstlpm_lag + age + age_2 + pct_last2 + factor(pos)
+                   PSTLPM ~ pstlpm_lag + age + age_2 + pct_last2 + factor(Pos.)
                    + factor(new_coach) + factor(new_team) + factor(year) + rstab_last2 + TSTLPM)
 summary(reg_stl1)
 
 # OLS
 reg_stl2 <- lm(data = df_filtered,
-               PSTLPM ~ pstlpm_lag + age + age_2 + pct_last2 + factor(pos)
+               PSTLPM ~ pstlpm_lag + age + age_2 + pct_last2 + factor(Pos.)
                    + factor(new_coach) + factor(new_team) + factor(year) + rstab_last2 + TSTLPM)
 summary(reg_stl2)
 
-tstlpm_reg <- summary(reg_stl2)$coefficients[35,]
+tstlpm_reg <- summary(reg_stl2)$coefficients["TSTLPM",]
+print(tstlpm_reg)
 
 #******************************************************************************#
-# for blocks
-# OLS
+# OLS BLK:----
 reg_stl1 <- lm(data = df,
-               PBLKPM ~ pblkpm_lag + age + age_2 + pct_last2 + factor(pos)
+               PBLKPM ~ pblkpm_lag + age + age_2 + pct_last2 + factor(Pos.)
                + factor(new_coach) + factor(new_team) + factor(year) + rstab_last2 + TBLKPM)
 summary(reg_stl1)
 
 # OLS
 reg_stl2 <- lm(data = df_filtered,
-               PBLKPM ~ pblkpm_lag + age + age_2 + pct_last2 + factor(pos)
+               PBLKPM ~ pblkpm_lag + age + age_2 + pct_last2 + factor(Pos.)
                + factor(new_coach) + factor(new_team) + factor(year) + rstab_last2 + TBLKPM)
 summary(reg_stl2)
 
-tblkpm_reg <- summary(reg_stl2)$coefficients[35,]
+tblkpm_reg <- summary(reg_stl2)$coefficients["TBLKPM",]
+print(tblkpm_reg)
 
 #******************************************************************************#
-# for personal fouls
-# OLS
+# OLS personal fouls:----
 reg_pf1 <- lm(data = df,
-               PPFPM ~ ppfpm_lag + age + age_2 + pct_last2 + factor(pos)
+               PPFPM ~ ppfpm_lag + age + age_2 + pct_last2 + factor(Pos.)
                + factor(new_coach) + factor(new_team) + factor(year) + rstab_last2 + TPFPM)
 summary(reg_pf1)
 
 # OLS
 reg_pf2 <- lm(data = df_filtered,
-               PPFPM ~ ppfpm_lag + age + age_2 + pct_last2 + factor(pos)
+               PPFPM ~ ppfpm_lag + age + age_2 + pct_last2 + factor(Pos.)
                + factor(new_coach) + factor(new_team) + factor(year) + rstab_last2 + TPFPM)
 summary(reg_pf2)
 
-tpfpm_reg <- summary(reg_pf2)$coefficients[35,]
+tpfpm_reg <- summary(reg_pf2)$coefficients["TPFPM",]
+print(tpfpm_reg)
 
 #******************************************************************************#
 # save all important variable estimates
