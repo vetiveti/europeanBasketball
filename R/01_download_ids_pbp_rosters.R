@@ -7,7 +7,6 @@ rm(list=ls())
 # source functions to use
 source('functions/BBL_functions.R')
 source('functions/pbp_actions.R')
-source('functions/minutes_played.R')
 
 library(tidyverse, warn.conflicts = FALSE)
 library(zoo)
@@ -83,4 +82,12 @@ for (i in jahre) {
 
 coaches <- bind_rows(coach_data,coach_data1)
 
+coaches$team[coaches$team == "s.Oliver Baskets"] <- "s.Oliver Würzburg"
+coaches$team[coaches$team == "s.Oliver Würzurg"] <- "s.Oliver Würzburg"
+coaches$team[coaches$team == "SYNTAINICS MBC"] <- "Mitteldeutscher BC"
+coaches$team[coaches$team == "Brose Baskets"] <- "Brose Bamberg"
+coaches$team[coaches$team == "HAKRO Merlins Crailsheim"] <- "Crailsheim Merlins"
+
 saveRDS(object = coaches, file = paste0("Data/coach_data_bbl.Rds"))
+coaches <- readRDS("Data/coach_data_bbl.Rds")
+
