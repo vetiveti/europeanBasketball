@@ -38,8 +38,7 @@ coach_data <- coach_data %>%
   filter(., year >=1988 & year <2019)
 
 #******************************************************************************#
-# Defensive rebounds:----
-# was wird gebraucht:
+# was wird gebraucht:----
 # dreb                              # check
 # lag(dreb)                         # check
 # age                               # check
@@ -288,6 +287,8 @@ print(TASTPM_reg)
 
 #******************************************************************************#
 # OLS for effective field goal percentage with respect to assists:----
+# irgendetwas stimmt hier nicht mit der Methode....:----
+# wie berechnet man adjusted field goal percentage?! rausfinden!
 reg_efg_pct1 <- lm(data = df,
                eff_fg_pct_p ~ eff_fg_pct_lag + age + age_2 + pct_last2 + factor(Pos.)
                + factor(new_coach) + factor(new_team) + factor(year) + rstab_last2 + eff_fg_pct_t + TASTPM)
@@ -296,12 +297,16 @@ summary(reg_efg_pct1)
 # OLS
 reg_efg_pct2 <- lm(data = df_filtered,
                eff_fg_pct_p ~ eff_fg_pct_lag + age + age_2 + pct_last2 + factor(Pos.)
-               + factor(new_coach) + factor(new_team) + factor(year) + rstab_last2 + TASTPM)
+               + factor(new_coach) + factor(new_team) + factor(year) + rstab_last2 + eff_fg_pct_t + TASTPM)
 summary(reg_efg_pct2)
 
 tastpm_reg <- summary(reg_efg_pct2)$coefficients["TASTPM",]
 print(tastpm_reg)
 
+a <- select(df_filtered,player,year,eff_fg_pct_p, eff_fg_pct_lag)
+b <- filter(stats5, player == "Adam, Waleskowski") %>% 
+  select(player,year,eff_fg_pct_p, eff_fg_pct_lag) #%>% 
+  mutate(lags = lag(eff_fg_pct_lag))
 #******************************************************************************#
 # OLS steals:----
 reg_stl1 <- lm(data = df,
@@ -360,5 +365,5 @@ teammates_influence <- bind_rows(tastpm_reg,tblkpm_reg,tdrebpm_reg,tfgapm_reg,to
   bind_cols(teammates_influence_names,.) %>% 
   rename(Statistic=...1)
 
-save(teammates_influence, file = "data/teammates_influence.rda")
+saveRDS(object = teammates_influence, file = paste0("data/teammates_influence.Rds"))
 #******************************************************************************#

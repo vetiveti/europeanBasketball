@@ -14,30 +14,22 @@ library(tidyverse)
 #******************************************************************************#
 # load data----
 player_totals <- readRDS("Data/player_data_totals.Rds") %>% 
-    filter(year == 2018) %>% 
-    rename(min = min_p) %>% 
+    rename(min = min_p) %>%
+    filter(min > 0) %>% 
     select(-pf_p)
 
-team_totals <- readRDS("Data/team_data_totals.Rds") %>% 
-    filter(year == 2018)
+team_totals <- readRDS("Data/team_data_totals.Rds")
 
 #******************************************************************************#
 
-a <- merge(player_totals,team_totals, by = "team", suffix = c("_p","_t"))
-
-#******************************************************************************#
-# hard coded variables please change:----
-lg_avg_ppp <- 1.083
-lg_avg_ppg <- 100
-pace_lg <- 91.7
-
+a <- merge(player_totals,team_totals, by = c("team","year"), suffix = c("_p","_t"))
 
 #******************************************************************************#
 # calc. scoring possessions ----
 a <- a %>% 
     mutate(qAST = ((min_p / (min_t / 5)) * (1.14 * ((ast_t - ast_p) / fgm_t))) + 
                ((((ast_t / min_t) * min_p * 5 - ast_p) / ((fgm_t / min_t) * min_p * 5 - fgm_p)) * (1 - (min_p / (min_t / 5)))),
-           FG_Part = fgm_p * (1 - 0.5 * ((pts_p - ftm_p) / (2 * fga_p)) * qAST),
+           FG_Part = ifelse(fga_p>0,fgm_p * (1 - 0.5 * ((pts_p - ftm_p) / (2 * fga_p)) * qAST),0),
            AST_Part = 0.5 * (((pts_t - ftm_t) - (pts_p - ftm_p)) / (2 * (fga_t - fga_p))) * ast_p,
            FT_Part = ifelse(fta_p>0, (1-(1-(ftm_p/fta_p))^2)*0.4*fta_p,0),
            Team_Scoring_Poss = fgm_t + (1 - (1 - (ftm_t / fta_t))^2) * fta_t * 0.4,
@@ -63,16 +55,22 @@ a <- a %>%
 a <- a %>% 
     mutate(TotPoss = ScPoss + FGxPoss + FTxPoss + tov_p)
 
+totposs_t <- a %>%
+    group_by(team,year) %>% 
+    mutate(tot_poss_t = sum(TotPoss)) %>% 
+    select(player,team,year,tot_poss_t,qAST,min_p)
 #******************************************************************************#
 # Individual Points Produced:----
 a <- a %>% 
     mutate(
-        PProd_FG_Part = 2 * (fgm_p + 0.5 * p3m_p) * (1 - 0.5 * ((pts_p - ftm_p) / (2 * fga_p)) * qAST),
+        PProd_FG_Part = ifelse(fga_p > 0,2 * (fgm_p + 0.5 * p3m_p) * (1 - 0.5 * ((pts_p - ftm_p) / (2 * fga_p)) * qAST),0),
         PProd_AST_Part = 2 * ((fgm_t - fgm_p + 0.5 * (p3m_t - p3m_p)) / (fgm_t - fgm_p)) * 0.5 * (((pts_t - ftm_t) - (pts_p - ftm_p)) / (2 * (fga_t - fga_p))) * ast_p,
         PProd_ORB_Part = orb_p * ORB_t_Weight * Team_Play_pct * (pts_t / (fgm_t + (1 - (1 - (ftm_t / fta_t))^2) * 0.4 * fta_t)),
         
         PProd = (PProd_FG_Part + PProd_AST_Part + ftm_p) * (1 - (orb_t / Team_Scoring_Poss) * ORB_t_Weight * Team_Play_pct) + PProd_ORB_Part)
 
+aa <- a %>% 
+    select(player,team,fgm_p,pts_p,ftm_p,fga_p,PProd_FG_Part,PProd)
 #******************************************************************************#
 # Individual offensive rating:----
 a <- a %>% 
@@ -85,6 +83,20 @@ c <- a %>%
                ((fga_t + 0.4 * fta_t - 1.07 * (orb_t / (orb_t + opp_drb)) * (fga_t - fgm_t) + tov_t) +
                     (opp_fga + 0.4 * opp_fta - 1.07 * (opp_orb / (opp_orb + drb_t)) * (fga_t - opp_fgm) + opp_tov))
     )
+lg_avg <- c %>% 
+    group_by(year) %>% 
+    mutate(avg_ppp_t = pts_t / poss_t,
+           avg_ppg_t = pts_t / G_t,
+           possible_min = mean(min_t)/G_t,
+           pace_t = (possible_min/min_t)*(poss_t + poss_t)/2) %>%
+    distinct(team, .keep_all = TRUE) %>% 
+    mutate(ppp = mean(avg_ppp_t),
+           ppg = mean(avg_ppg_t),
+           pace = mean(pace_t)) %>% 
+    distinct(ppp, .keep_all = TRUE) %>% 
+    select(year,ppp,ppg,pace)
+
+#******************************************************************************#
 
 c <- c %>% 
     mutate(
@@ -113,17 +125,18 @@ c <- c %>%
 
 #******************************************************************************#
 # offensive win shares:----
-d <- c %>% 
-    mutate(marg_off = PProd - 0.92 * lg_avg_ppp * TotPoss,
+c1 <- merge(c,lg_avg, by = "year")
+d <- c1 %>% 
+    mutate(marg_off = PProd - 0.92 * ppp * TotPoss,
            pace_t = (poss_t * 2 * 40) / (2 * min_t / 5),
-           marg_ppw = 0.32 * lg_avg_ppg * (pace_t / pace_lg),
+           marg_ppw = 0.32 * ppg * (pace_t / pace),
            owin_share = marg_off / marg_ppw)
 
 #******************************************************************************#
 # defensive win shares----
 e <- d %>% 
     mutate(
-        marg_def = (min_p / min_t * poss_t)  * ((1.08 * lg_avg_ppp) - DRtg / 100),
+        marg_def = (min_p / min_t * poss_t)  * ((1.08 * ppp) - DRtg / 100),
         dwin_share = marg_def / marg_ppw
     )
 
@@ -135,4 +148,4 @@ f <- e %>%
 sum(f$win_shares)
 
 win_shares <- select(f,
-                    player, team, min_p, owin_share, dwin_share, win_shares)
+                    player, team,year, min_p, owin_share, dwin_share, win_shares)

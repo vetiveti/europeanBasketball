@@ -103,6 +103,7 @@ player <- player %>%
          thresh_pts_PCT = thresh_pts / thresh_pts_t / min_pct)
 
 # hardcode position regression:
+# hier muss ich jetzt nachbessern:----
 position <- data.frame(intercept = 2.13,
                        trb_pct = 8.668,
                        stl_pct = -2.486,
@@ -194,6 +195,7 @@ player <- player %>%
 #******************************************************************************#
 # Determine offensive role:----
 # hard code offensive role:
+# hier muss ich jetzt nachbessern:----
 offensive_role <- data.frame(
   intercept = 6,
   ast_pct = -6.642,

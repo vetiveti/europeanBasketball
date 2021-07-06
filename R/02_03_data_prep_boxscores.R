@@ -323,15 +323,13 @@ player_for_merge <- player_data_info %>%
 
 player_perT <- merge(player_for_merge,team_for_merge,
                      by = c("team","year"),
-                     all = TRUE) %>% 
-    mutate(pf_p = pf_p / G_t)
+                     all = TRUE) 
 
 player_perT <- player_perT %>% 
     group_by(team,year) %>% 
-    mutate(PF_perc = pf_p / pf_t,
-           pf_p = opp_ftm * PF_perc * G_t) %>% 
+    mutate(PF_perc = pf_p / pf_t) %>% 
     ungroup() %>% 
-    select(player,team,pf_p,year)
+    select(player,team,year,PF_perc)
 
 player_totals <- merge(player_data_info, player_perT,
                        by = c("player","team","year")) %>% 

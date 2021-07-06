@@ -101,10 +101,11 @@ blk_on_opp_FGM <- lm(data = team_pg , opp_fgm ~ blk + opp_fga +
                          factor(year))
 summary(blk_on_opp_FGM)
 
+unique(coefficients(blk_on_opp_FGM)["blk"] * - team_pg$marg_val_2FGM) # mein wert nach berris methode
 team_pg <- team_pg %>% 
-    mutate(marg_val_BLK = 0.0204)
+    mutate(marg_val_BLK = unique(coefficients(blk_on_opp_FGM)["blk"] * - team_pg$marg_val_2FGM))
 
-# value of pf wagesofwins
+# value of pf
 # approximately the same as FTM
 team_pg <- team_pg %>% 
     mutate(marg_val_PF = -marg_val_FTM)
@@ -144,6 +145,33 @@ print(marg_values_rounded)
 
 #******************************************************************************#
 #### Step 1: player production per 48 minutes:----
+
+# foul percentage
+team_for_merge <- team_totals %>% 
+    select(team, opp_ftm, pf, G, year) %>% 
+    rename(pf_t = pf) %>% 
+    rename(G_t = G)
+
+player_for_merge <- player_totals %>% 
+    select(player, team, pf,G,year) %>% 
+    mutate(pf_p = pf) %>% 
+    rename(G_p = G)
+
+player_perT <- merge(player_for_merge,team_for_merge,
+                     by = c("team","year"),
+                     all = TRUE) 
+
+player_perT <- player_perT %>% 
+    group_by(team,year) %>% 
+    mutate(PF_perc = pf_p / pf_t) %>% 
+    ungroup() %>% 
+    select(player,team,year,PF_perc)
+
+player_totals <- merge(player_totals, player_perT,
+                       by = c("player","team","year")) %>% 
+    relocate(fga, fgm, .after = min_p)
+
+#
 player_totals <- player_totals %>% 
     mutate(total_production  = (
         p3m * marg_values$`3FGM`
@@ -156,7 +184,7 @@ player_totals <- player_totals %>%
         + drb * marg_values$DRB
         + tov  * marg_values$TOV
         + stl  * marg_values$STL
-        + pf_p   * marg_values$PF
+        + PF_perc * marg_values$PF
         + blk  * marg_values$BLK
         + ast  * marg_values$AST)
     )
@@ -179,7 +207,10 @@ ggplot(wins_produced, aes(y = total_production,x = min_p)) +
 # teammate's productivity is not robust (only for defensive rebounds) thus we account onl for teammate's production of
 # defensive rebounds
 DREBMATE = 0.504
-#DREBMATE = 0.65696313 # my number
+
+team_influence <- readRDS("data/teammates_influence.Rds")
+team_influence
+DREBMATE = 0.6253168 # my number
 # Step 2.1
 # TDREBPM = (Team DREB - Player DREB) / (Team minutes played - player minutes played)
 # calculate how many DREB's a team gathers without the player of interest and adjust
@@ -196,7 +227,7 @@ DREB_adjustment <- DREB_adjustment %>%
 # Step 2.2 - Estimate how much production is lost cause of that
 # Thus, multiply by estimated value for DREB lost because of teammates (for now 0.504)
 DREB_adjustment <- DREB_adjustment %>%
-    mutate(TDREBPM_ind_reb_loss = TDREBPM * - 0.504)
+    mutate(TDREBPM_ind_reb_loss = TDREBPM * - DREBMATE)
 
 # Step 2.3
 # calculate marginal value of productivity of team defensive rebounds for each player lost
@@ -219,7 +250,7 @@ DREB_adjustment <- DREB_adjustment %>%
     mutate(rebound_percentage = (drb.x / drb.y)) %>%
     mutate(eins = sum(rebound_percentage)) %>%
     ungroup()
-
+# eventuell falsch herum??? check mit dem anderen file----
 DREB_adjustment$TDREB_captured_from_tm <- DREB_adjustment$TDREB_totalloss * DREB_adjustment$rebound_percentage
 
 # Step 2.6
@@ -232,7 +263,7 @@ wins_produced <- wins_produced %>%
     mutate(P48Adj =if_else(min_p==0,0,PROD_adj / min_p * 40))
 
 #******************************************************************************#
-# Step 3: Assist adjustment:----
+# 2.2: assist adjustment:----
 # player_adj_fg% = f(player_adj_fg%_last_season + age + age^2 +%gp last 2 seasons +
 #  dummy(position) + dummy(new coach) + dummy(new team) + dummy(year) + 
 #                    dummy(roster stability) +
@@ -247,26 +278,27 @@ assist_adjustment <- merge(player_totals, team_totals,
     arrange(player) %>%
     select(1:2,year,min,min_p,ast.x,ast.y, fga.x)
 
-# Step 3.1 - Calculate Teammate's assist per minute
+# Step 2.2.1 - Calculate Teammate's assist per minute
 assist_adjustment <- assist_adjustment %>%
     mutate(TAPM =(ast.y - ast.x) / (min - min_p))
 
-# Step 3.2 - Multiply TAPM by coefficient of assists produced by teammates. For now 0.725 and multiply by 2 (F?r 3 punkte w?rfe?!)
+# Step 2.2.2 - Multiply TAPM by coefficient of assists produced by teammates. For now 0.725 and multiply by 2 (Für 3 punkte würfe?!)
 tASTpm <- 0.725
-#tASTpm <- 0.64150801 # my number
+tASTpm <- 0.4217740 # my number
+
 assist_adjustment <- assist_adjustment %>%
     mutate(TAPM_val =TAPM * tASTpm) %>%
-    mutate(TAPM_val_FG = TAPM_val * 2)
+        mutate(TAPM_val_FG = TAPM_val * 2)
 
-# Step 3.3 - Multiply TAPM_val_FG by field goals taken. 
+# Step 2.2.3 - Multiply TAPM_val_FG by field goals taken. 
 assist_adjustment <- assist_adjustment %>%
     mutate(points_credit_team =TAPM_val_FG * fga.x)
 
-# Step 3.4 - Multiply by the impact that points have on wins (players production which is credit due teammate's)
+# Step 2.2.4 - Multiply by the impact that points have on wins (players production which is credit due teammate's)
 assist_adjustment <- assist_adjustment %>%
-    mutate(ast_val_team = points_credit_team * marg_values$`2FGM`)
+    mutate(ast_val_team = points_credit_team * coefficients(pts_on_w_pct)["pts"])
 
-# Step 3.5 - Sum across all players of team and year and compute assist percentages for every player
+# Step 2.2.5 - Sum across all players of team and year and compute assist percentages for every player
 assist_adjustment <- assist_adjustment %>%
     group_by(team,year) %>%
     mutate(ast_total_val = sum(ast_val_team)) %>%
@@ -274,20 +306,20 @@ assist_adjustment <- assist_adjustment %>%
     mutate(eins = sum(ast_percentage)) %>%
     ungroup()
 
-# Step 3.6 - Allocate ass_total_val according to assist percentages from players
+# Step 2.2.6 - Allocate ass_total_val according to assist percentages from players
 # and calculate net assists for each player
 assist_adjustment <- assist_adjustment %>%
     mutate(ast_val_ind = ast_total_val * ast_percentage) %>%
     mutate(ast_net = ast_val_ind - ast_val_team)
 
-# Step 3.7 compute adjusted production and P48
+# Step 2.2.7 compute adjusted production and P48
 wins_produced <- wins_produced %>%
     mutate(ast_net = assist_adjustment$ast_net) %>% 
     mutate(PROD_adj2 = PROD_adj + assist_adjustment$ast_net) %>%
     mutate(P48Adj2 =if_else(min_p==0, 0, (PROD_adj2 / min_p) * 40))
 
 #******************************************************************************#
-# Step 4: Team defense adjustments:----
+# 2.3: Team defense adjustments:----
 # Calculating Team Turnovers
 team_adjustment <- player_totals %>%
     group_by(team,year) %>%
@@ -320,13 +352,13 @@ team_adjustment <- team_adjustment %>%
     mutate(Team_defense_adj = Team_adj - Team_adj_avg) %>%
     ungroup()
 
-# Step 4.... compute adjusted P48
+# Step 2.3.4 compute adjusted P48
 wins_produced <- wins_produced %>%
     mutate(team_adj = team_adjustment$Team_defense_adj) %>% 
     mutate(P48Adj3 = P48Adj2 + team_adjustment$Team_defense_adj)
 
 #******************************************************************************#
-#### Step 5: Position adjustment:----
+#### Step 3: Position adjustment:----
 pos_avg_1 <- wins_produced %>% 
     group_by(player,year) %>%
     filter(., min_p/G > 10 & G > 7) %>% 
@@ -363,7 +395,7 @@ pos_avg_final <- merge(wins_produced, pos_avg_5,
 
 wins_produced <- pos_avg_final
 
-# Step 5.3 calculate net value for each player
+# Step 3.3 calculate net value for each player
 wins_produced <- wins_produced %>%
 mutate(P48Adj4 =P48Adj3 - pos_mean) %>% 
     mutate(P48Adj5 = (P48Adj4 + 0.099)) %>% 
@@ -383,4 +415,6 @@ wins<- merge(wins_for_merge,win_est,
 
 wins <- wins %>% 
     mutate(diff = W - win_est,
-           abs_diff = abs(diff))
+           abs_diff = abs(diff)) %>% 
+    group_by(year) %>% 
+    mutate(avg_dif = mean(abs_diff))
