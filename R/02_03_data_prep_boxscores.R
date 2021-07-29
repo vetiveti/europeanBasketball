@@ -26,7 +26,7 @@ roster = rbindlist(roster_list, fill = TRUE, idcol="year") %>%
     filter(., year >= 2014)
 
 #******************************************************************************#
-# Load roster files: ----
+# Load starter files: ----
 files <- list.files(path = './data/starters', pattern ='starters')
 starter_list = lapply(paste0("Data/starters/",files), function (x) data.table(readRDS(x)))
 starter = rbindlist(starter_list, fill = TRUE, idcol="year") %>%
@@ -41,7 +41,6 @@ id_plus_teams <- tibble(id = un,
                         team_1 = 0,
                         team_2 = 0)
 bx_teams <- tibble()
-
 for (i in seq_along(un)) {
     current_game <- filter(pbp,
                            game_id == un[i])
@@ -74,6 +73,9 @@ bx_teams$team[bx_teams$team == "SYNTAINICS MBC"] <- "Mitteldeutscher BC"
 bx_teams$team[bx_teams$team == "Brose Baskets"] <- "Brose Bamberg"
 bx_teams$team[bx_teams$team == "HAKRO Merlins Crailsheim"] <- "Crailsheim Merlins"
 unique(bx_teams$team)
+
+# bx_teams:----
+saveRDS(object = bx_teams, file = paste0("Data/bx_teams_pg",".Rds"))
 
 team_totals <- bx_teams %>%
     drop_na(team)

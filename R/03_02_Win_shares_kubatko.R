@@ -4,12 +4,10 @@ cat("\014")
 # remove Environment
 rm(list=ls())
 
-library(tidyverse)
+# set working directory
+setwd("~/Uni Tübingen/0. Masterarbeit/7. R/europeanBasketball")
 
-#******************************************************************************#
-# Erinnerung:----
-# change hard coded variables 
-# - need all league data team, team opponent and player data 
+library(tidyverse)
 
 #******************************************************************************#
 # load data----
@@ -29,15 +27,24 @@ a <- merge(player_totals,team_totals, by = c("team","year"), suffix = c("_p","_t
 a <- a %>% 
     mutate(qAST = ((min_p / (min_t / 5)) * (1.14 * ((ast_t - ast_p) / fgm_t))) + 
                ((((ast_t / min_t) * min_p * 5 - ast_p) / ((fgm_t / min_t) * min_p * 5 - fgm_p)) * (1 - (min_p / (min_t / 5)))),
+           
            FG_Part = ifelse(fga_p>0,fgm_p * (1 - 0.5 * ((pts_p - ftm_p) / (2 * fga_p)) * qAST),0),
+           
            AST_Part = 0.5 * (((pts_t - ftm_t) - (pts_p - ftm_p)) / (2 * (fga_t - fga_p))) * ast_p,
+           
            FT_Part = ifelse(fta_p>0, (1-(1-(ftm_p/fta_p))^2)*0.4*fta_p,0),
+           
            Team_Scoring_Poss = fgm_t + (1 - (1 - (ftm_t / fta_t))^2) * fta_t * 0.4,
            
+           
            ORB_t_pct = orb_t / (orb_t + (opp_trb - opp_orb)),
+           
            Team_Play_pct = Team_Scoring_Poss / (fga_t + fta_t * 0.4 + tov_t),
+           
            ORB_t_Weight = ((1 - ORB_t_pct) * Team_Play_pct) / ((1 - ORB_t_pct) * Team_Play_pct + ORB_t_pct * (1 - Team_Play_pct)),
+           
            ORB_Part = orb_p * ORB_t_Weight * Team_Play_pct,
+           
            
            ScPoss = (FG_Part + AST_Part + FT_Part) * (1 - (orb_t / Team_Scoring_Poss) * ORB_t_Weight * Team_Play_pct) + ORB_Part
     )
@@ -63,7 +70,7 @@ totposs_t <- a %>%
 # Individual Points Produced:----
 a <- a %>% 
     mutate(
-        PProd_FG_Part = ifelse(fga_p > 0,2 * (fgm_p + 0.5 * p3m_p) * (1 - 0.5 * ((pts_p - ftm_p) / (2 * fga_p)) * qAST),0),
+        PProd_FG_Part = ifelse(fga_p > 0, 2 * (fgm_p + 0.5 * p3m_p) * (1 - 0.5 * ((pts_p - ftm_p) / (2 * fga_p)) * qAST),0),
         PProd_AST_Part = 2 * ((fgm_t - fgm_p + 0.5 * (p3m_t - p3m_p)) / (fgm_t - fgm_p)) * 0.5 * (((pts_t - ftm_t) - (pts_p - ftm_p)) / (2 * (fga_t - fga_p))) * ast_p,
         PProd_ORB_Part = orb_p * ORB_t_Weight * Team_Play_pct * (pts_t / (fgm_t + (1 - (1 - (ftm_t / fta_t))^2) * 0.4 * fta_t)),
         
@@ -71,6 +78,7 @@ a <- a %>%
 
 aa <- a %>% 
     select(player,team,fgm_p,pts_p,ftm_p,fga_p,PProd_FG_Part,PProd)
+
 #******************************************************************************#
 # Individual offensive rating:----
 a <- a %>% 
@@ -83,6 +91,7 @@ c <- a %>%
                ((fga_t + 0.4 * fta_t - 1.07 * (orb_t / (orb_t + opp_drb)) * (fga_t - fgm_t) + tov_t) +
                     (opp_fga + 0.4 * opp_fta - 1.07 * (opp_orb / (opp_orb + drb_t)) * (fga_t - opp_fgm) + opp_tov))
     )
+
 lg_avg <- c %>% 
     group_by(year) %>% 
     mutate(avg_ppp_t = pts_t / poss_t,
@@ -148,4 +157,10 @@ f <- e %>%
 sum(f$win_shares)
 
 win_shares <- select(f,
-                    player, team,year, min_p, owin_share, dwin_share, win_shares)
+                    player, team,year, min_p, owin_share, dwin_share, win_shares) %>% 
+    arrange(-win_shares)
+
+#******************************************************************************#
+# save final win shares in data frame: ----
+saveRDS(object = win_shares, file = paste0("Data/win_shares.Rds"))
+

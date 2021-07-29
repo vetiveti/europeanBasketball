@@ -20,14 +20,15 @@ files <- list.files(path = './data/starters', pattern ='starters')
 roster_list = lapply(paste0("data/starters/",files), function (x) data.table(readRDS(x)))
 roster = rbindlist(roster_list, fill = TRUE, idcol="year") %>%
     mutate(year = year +2013) %>% 
-    filter(., year >= 2014)
+    filter(., year > 2013)
 
 #******************************************************************************#
 # Load cleaned pbp files: ----
 files <- list.files(path = './data/clean_pbp', pattern ='pbp')
 pbp_list = lapply(paste0("Data/clean_pbp/",files), function (x) data.table(readRDS(x)))
 pbp = rbindlist(pbp_list, fill = TRUE, idcol="ID") %>% 
-    mutate(year = ID +2013)
+    mutate(year = ID +2013) %>% 
+    filter(year > 2013)
 
 #******************************************************************************#
 # parse pbp to possession df:----
@@ -247,7 +248,7 @@ library(glmnet)
 library(knitr)
 
 possesion_data <- readRDS("data/possessions.Rds") %>% 
-    filter(year == 2018)
+    filter(year > 2013)
 
 head(possesion_data)
 
@@ -274,7 +275,6 @@ print(paste0("There are ", length(players), " unique players in the dataset."))
 
 possesion_data <- possesion_data %>% 
     mutate(ppp100 = 100 * points/possesion)
-
 
 
 make_matrix_rows <- function(lineup, players_in) {
@@ -313,10 +313,32 @@ make_matrix_rows <- function(lineup, players_in) {
 player_matrix <- t(apply(possesion_data[, 1:10], 1, 
                          function(x) make_matrix_rows(lineup = x, players_in = players)))
 
+a <- player_matrix %>% as_tibble()
+colnames(a)
+b<- colSums(a) %>% as_tibble()
+c <- tibble(players)
+d <- bind_rows(c,c)
+
+poss_p <- data.frame("player_id" = d,
+                           "possessions" = b) %>% 
+    rename(possessions = value,
+           Player = players)
+poss_p <- poss_p  %>% 
+    mutate(off_poss = ifelse(possessions >= 0,possessions,0),
+           def_poss = ifelse(possessions <= 0,-possessions,0)) %>% 
+    mutate(poss_total = abs(possessions))
+poss_player_combined <- poss_p %>%
+    group_by(Player) %>% 
+    mutate(poss_total_player =sum(poss_total)) %>% 
+    distinct(.,Player, .keep_all = TRUE) %>% 
+    select(Player, poss_total_player)
+
 player_matrix <- as(player_matrix, "dgCMatrix")
 
-target <- possesion_data$ppp100
+saveRDS(object = player_matrix, file = paste0("Data/player_matrix_2018.Rds"))
 
+target <- possesion_data$ppp100
+weight <- possesion_data$year - 2013
 print(dim(player_matrix))
 
 
@@ -324,6 +346,7 @@ print(dim(player_matrix))
 cv_model <- glmnet::cv.glmnet(x = player_matrix,
                               y = target,
                               alpha = 0, 
+                              weights = weight,
                               standardize = FALSE)
 
 lam <- cv_model$lambda.min ## best lambda
@@ -333,6 +356,7 @@ coef_model <- glmnet::glmnet(x = player_matrix,
                              y = target,
                              alpha = 0, 
                              standardize = FALSE,
+                             weights = weight,
                              lambda = lam)
 player_coefficients <- coef_model$beta 
 
@@ -355,15 +379,62 @@ rapm <- left_join(o_rapm_frame, d_rapm_frame, by = "player_id") %>%
            `D-RAPM` = d_rapm) %>% 
     arrange(-RAPM)    
 
-kable(rapm[1:5, ] %>% 
+rapm_pos <- merge(rapm, poss_player_combined, by ="Player") %>% 
+    arrange(-RAPM)
+
+kable(rapm_pos[1:20, ] %>% 
           mutate(across(where(is.numeric), function(x) round(x, 1))), align = "c") 
 
+ggplot(data = rapm, aes(x = d_rapm, y = o_rapm))+
+    geom_point()
+
+ggplot(data = rapm, aes(x=RAPM))+
+    geom_histogram()
+
 #******************************************************************************#
-library(tidyverse)
-library(broom)
-library(MASS)
-possesion_data <- readRDS("data/possessions.Rds") %>% 
-    filter(year == 2018)
+library(doParallel)
+target <- possesion_data$ppp100
+player_matrix <- player_matrix
+lambdas = NULL
+require(doParallel)
+registerDoParallel(15)
+for (i in 1:10){
+    set.seed( as.integer((as.double(Sys.time())*i+Sys.getpid()) %% 2^31) )
+    fit <- cv.glmnet(x = player_matrix,y = target,alpha=0,weights= NULL,nfolds=10,parallel=TRUE,standardize=FALSE,lambda=seq(1, 1.5, by=0.01))
+    errors = data.frame(fit$lambda,fit$cvm)
+    lambdas <- rbind(lambdas,errors)
+}
+lambdas <- aggregate(lambdas[, 2], list(lambdas$fit.lambda), mean)
+bestindex = which(lambdas[2]==min(lambdas[2]))
+bestlambda = lambdas[bestindex,1]
+fit <- glmnet(x = player_matrix,y = target,alpha=0,weights=NULL,standardize=FALSE,lambda=bestlambda)
+coef(fit)
 
-rapm2 <- lm.ridge(formula=points~., data =possesion_data, lambda = seq(0,20000,200))
+player_coefficients <- fit$beta 
 
+o_rapm <- player_coefficients[1:length(players)]
+
+d_rapm <- player_coefficients[length(players) + 1:length(players) * 2]
+
+o_rapm_frame <- data.frame("player_id" = players,
+                           "o_rapm" = o_rapm)
+
+d_rapm_frame <- data.frame("player_id" = players,
+                           "d_rapm" = d_rapm)
+
+rapm1 <- left_join(o_rapm_frame, d_rapm_frame, by = "player_id") %>% 
+    mutate(rapm = o_rapm + d_rapm) %>% 
+    dplyr::select(Player = player_id,
+                  RAPM = rapm,
+                  `O-RAPM` = o_rapm,
+                  `D-RAPM` = d_rapm) %>% 
+    arrange(-RAPM)    
+
+kable(rapm1[1:5, ] %>% 
+          mutate(across(where(is.numeric), function(x) round(x, 1))), align = "c") 
+
+rapm1_pos <- merge(rapm1, poss_player_combined, by = "Player") %>% 
+    arrange(-RAPM)
+
+kable(rapm1_pos[1:6, ] %>% 
+          mutate(across(where(is.numeric), function(x) round(x, 1))), align = "c") 

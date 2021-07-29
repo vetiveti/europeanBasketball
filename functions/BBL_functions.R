@@ -631,7 +631,7 @@ playing_time <- function(roster_game, pbp_game){
 # RAPM data frame
 RAPM_data_frame <- function(roster_game, pbp_game){
     roster_game <- roster_game %>% 
-        select(Player,Club,starts_with("starter_Q")) %>% 
+        dplyr::select(Player,Club,starts_with("starter_Q")) %>% 
         mutate(Q1 = if_else(starter_Q1 == 1,Player,"0"),
                Q2 = if_else(starter_Q2 == 1,Player,"0"),
                Q3 = if_else(starter_Q3 == 1,Player,"0"),

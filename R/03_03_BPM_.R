@@ -520,8 +520,13 @@ ggplot(BPM, aes(x=BPM, y = VORP, colour = year)) +
 
 #******************************************************************************#
 # Final scores:----
-BPM_for_merge <- select(BPM,min_p,G_p,player,team,year,BPM,VORP)
+BPM_for_merge <- select(BPM,min_p,player,team,year,BPM,VORP)
 OBPM_for_merge <- select(OBPM, player, team, year, OBPM, VORP)
 
 BPM_final <- merge(BPM_for_merge, OBPM_for_merge, by = c("player","team","year"),
-                   suffixes = c("","_off."))
+                   suffixes = c("","_off.")) %>% 
+  arrange(-BPM)
+
+#******************************************************************************#
+# save final win shares in data frame: ----
+saveRDS(object = BPM_final, file = paste0("Data/BPM_final.Rds"))

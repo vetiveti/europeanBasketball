@@ -4,12 +4,16 @@ cat("\014")
 # remove Environment
 rm(list=ls())
 
+# set working directory
+setwd("~/Uni Tübingen/0. Masterarbeit/7. R/europeanBasketball")
+
 # source functions to use
 source('functions/berri_functions.R')
 
 # load needed packages
 library(tidyverse)
 library(data.table)
+
 #******************************************************************************#
 # Load data:----
 team_totals <- readRDS("Data/team_data_totals.Rds")
@@ -21,6 +25,7 @@ player_pg <- readRDS("Data/player_data_pg.Rds")
 
 # load coach data
 coach_data <- readRDS("Data/coach_data_bbl.Rds")
+
 #******************************************************************************#
 # Data preparation:----
 # preparing and setting up team data
@@ -38,18 +43,17 @@ coach_data <- coach_data %>%
   filter(., year >=1988 & year <2019)
 
 #******************************************************************************#
-# was wird gebraucht:----
-# dreb                              # check
-# lag(dreb)                         # check
-# age                               # check
-# age^2                             # check
-# % played last 2 seasons           # check
-# new coach                         # check
-# new team                          # check
-# roster stability                  # check
-# teammate's per minute production  # check
+# What is NEEDED:----
+
+# 1. age + age^2                       # check
+# 2. % played last 2 seasons           # check
+# 3. new team & roster stability       # check
+# 4. teammate's per minute production  # check
+# 5. lagged values                     # check
+# 6. new coach                         # check
 
 #******************************************************************************#
+# 1. age & age^2:----
 stat_prod <- player_totals %>% 
   mutate_if(is.numeric, as.numeric) %>%
   rename(age = Alter,
@@ -57,6 +61,8 @@ stat_prod <- player_totals %>%
          gp = G) %>% 
   mutate(age_2 = (age)^2)
 
+#******************************************************************************#
+# 2. min played this season + last and this season:----
 # Step 1: compute %pct of games played in the last 2 seasons
 df <- team_totals %>% 
   select(year,team,G,W,L)
@@ -121,12 +127,15 @@ stats2 <- bind_cols(stats2_2,a) %>%
   rename(pct_min_last2="NA")
  
 #******************************************************************************#
-# Step 3: calculating if a player changed his team
+# 3. player changed team & roster stability:----
 # compute roster stability and if a player changed team or did not sign a contract continuously with the same team
 stats3 <- roster_stability(stats2) %>% 
   type.convert(as.is = TRUE)
 
-# Step 4: compute TDREBPM = (Team DREB - Player DREB) / (Team minutes played - player minutes played)
+
+#******************************************************************************#
+# 4. Team stats without player on court:----
+# compute TDREBPM = (Team DREB - Player DREB) / (Team minutes played - player minutes played)
 stats4 <- stats3 %>% 
   mutate(PDREPM = drb_p/min_p) %>% 
   mutate(TDREBPM = (drb_t-drb_p)/ (min_t-min_p)) %>% 
@@ -153,7 +162,8 @@ stats4 <- stats3 %>%
   mutate(PPFPM = pf_p/min_p) %>% 
   mutate(TPFPM = (pf_t-pf_p)/ (min_t-min_p))
 
-# Step 5: compute lagged dreb per minute
+#******************************************************************************#
+# 5: Lagged values:----
 stats5 <- stats4 %>% as.data.table() %>% 
   arrange(player,year,team)
 # remove both duplicated rows! ( exclude player seasons where a player changed teams in a season)
@@ -180,7 +190,8 @@ stats5 <- stats5 %>%
   ungroup() %>% 
   na.omit()
 
-# Step 6: compute dummy new coach
+#******************************************************************************#
+# 6: New coach:----
 coaches <- coach_data %>%
   arrange(year) %>% 
   group_by(team,year) %>%
@@ -215,13 +226,18 @@ df <- merge(stats5,coaches1,
             all.y = FALSE) %>% 
   arrange(player,year,team)
 
-# filter players out how have not played more than 20 games and have at least 12 min/pg
+#******************************************************************************#
+# filter players:----
 df_filtered <- df %>% 
-  filter(gp >= 15,
-        min_p/gp >= 10)
+  filter(gp > 7,
+        min_p/gp > 10)
   
 #******************************************************************************#
-# OLS DRB:----
+# EVALUATION START----
+
+#******************************************************************************#
+# Defensive rebounds:----
+# OLS
 regres <- lm(data = df,
              PDREPM ~ pdrebpm_lag + age + age_2 + pct_last2 + factor(Pos.)
              + factor(new_coach) + factor(new_team) + factor(year) + rstab_last2 + TDREBPM)
@@ -239,7 +255,8 @@ reg2 <- lm(data = df_filtered,
 summary(reg2)
 
 #******************************************************************************#
-# OLS FGA:----
+# Field goal attempts:----
+# OLS
 reg_fga1 <- lm(data = df,
              PFGAPM ~ pfgapm_lag + age + age_2 + pct_last2 + factor(Pos.)
              + factor(new_coach) + factor(new_team) + factor(year) + rstab_last2 + TFGAPM)
@@ -255,7 +272,8 @@ tfgapm_reg <- summary(reg_fga2)$coefficients["TFGAPM",]
 print(tfgapm_reg)
 
 #******************************************************************************#
-# OLS ORB
+# Offensive rebounds:----
+# OLS
 reg_oreb1 <- lm(data = df,
                POREPM ~ porebpm_lag + age + age_2 + pct_last2 + factor(Pos.)
                + factor(new_coach) + factor(new_team) + factor(year) + rstab_last2 + TOREBPM)
@@ -271,7 +289,8 @@ torebpm_reg <- summary(reg_oreb2)$coefficients["TOREBPM",]
 print(torebpm_reg)
 
 #******************************************************************************#
-# OLS AST:----
+# Assists
+# OLS
 reg_ast1 <- lm(data = df,
                PASTPM ~ pastpm_lag + age + age_2 + pct_last2 + factor(Pos.)
                + factor(new_coach) + factor(new_team) + factor(year) + rstab_last2 + TASTPM)
@@ -286,9 +305,8 @@ TASTPM_reg <- summary(reg_ast2)$coefficients["TASTPM",]
 print(TASTPM_reg)
 
 #******************************************************************************#
-# OLS for effective field goal percentage with respect to assists:----
-# irgendetwas stimmt hier nicht mit der Methode....:----
-# wie berechnet man adjusted field goal percentage?! rausfinden!
+# Effective field goal percentage w.r.t assists:----
+# OLS
 reg_efg_pct1 <- lm(data = df,
                eff_fg_pct_p ~ eff_fg_pct_lag + age + age_2 + pct_last2 + factor(Pos.)
                + factor(new_coach) + factor(new_team) + factor(year) + rstab_last2 + eff_fg_pct_t + TASTPM)
@@ -307,8 +325,10 @@ a <- select(df_filtered,player,year,eff_fg_pct_p, eff_fg_pct_lag)
 b <- filter(stats5, player == "Adam, Waleskowski") %>% 
   select(player,year,eff_fg_pct_p, eff_fg_pct_lag) #%>% 
   mutate(lags = lag(eff_fg_pct_lag))
+
 #******************************************************************************#
-# OLS steals:----
+# Steals:----
+# OLS
 reg_stl1 <- lm(data = df,
                    PSTLPM ~ pstlpm_lag + age + age_2 + pct_last2 + factor(Pos.)
                    + factor(new_coach) + factor(new_team) + factor(year) + rstab_last2 + TSTLPM)
@@ -324,7 +344,8 @@ tstlpm_reg <- summary(reg_stl2)$coefficients["TSTLPM",]
 print(tstlpm_reg)
 
 #******************************************************************************#
-# OLS BLK:----
+# Blocks:----
+# OLS
 reg_stl1 <- lm(data = df,
                PBLKPM ~ pblkpm_lag + age + age_2 + pct_last2 + factor(Pos.)
                + factor(new_coach) + factor(new_team) + factor(year) + rstab_last2 + TBLKPM)
@@ -340,7 +361,8 @@ tblkpm_reg <- summary(reg_stl2)$coefficients["TBLKPM",]
 print(tblkpm_reg)
 
 #******************************************************************************#
-# OLS personal fouls:----
+# Personal fouls:----
+# OLS
 reg_pf1 <- lm(data = df,
                PPFPM ~ ppfpm_lag + age + age_2 + pct_last2 + factor(Pos.)
                + factor(new_coach) + factor(new_team) + factor(year) + rstab_last2 + TPFPM)
@@ -366,4 +388,5 @@ teammates_influence <- bind_rows(tastpm_reg,tblkpm_reg,tdrebpm_reg,tfgapm_reg,to
   rename(Statistic=...1)
 
 saveRDS(object = teammates_influence, file = paste0("data/teammates_influence.Rds"))
+
 #******************************************************************************#
