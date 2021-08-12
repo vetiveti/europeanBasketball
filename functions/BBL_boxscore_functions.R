@@ -140,7 +140,6 @@ get_ast <- function(pbp, team){
     ast <- nrow(filter(pbp, sn_Spieler_2 !="",
                        aktion != "SUBST",
                        aktion != "JB",
-                       aktion != "FT",
                        Club_2 ==team))
     return(ast)
 }
@@ -233,7 +232,6 @@ get_blk_p <- function(pbp, player){
 get_ast_p <- function(pbp, player){
     ast <- nrow(filter(pbp, Player_2==player,
                        aktion != "SUBST",
-                       aktion != "FT",
                        aktion != "JB"))
     return(ast)
 }

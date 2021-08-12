@@ -57,7 +57,6 @@ coach_data <- coach_data %>%
 stat_prod <- player_totals %>% 
   mutate_if(is.numeric, as.numeric) %>%
   rename(age = Alter,
-         pf_percent = pf_p,
          gp = G) %>% 
   mutate(age_2 = (age)^2)
 

@@ -19,7 +19,7 @@ library(zoo)
 
 #******************************************************************************#
 # Load cleaned pbp files: ----
-pbp_files = paste0("Data/clean_pbp/pbp_", 2014:2018, ".Rds")
+pbp_files = paste0("Data/clean_pbp/pbp_", 2014:2020, ".Rds")
 name <- gsub("\\.Rds$", "", pbp_files) %>% 
     gsub("Data/", "", .)
 pbp_data <- lapply(pbp_files, readRDS)
@@ -27,7 +27,7 @@ names(pbp_data) <- gsub("\\.Rds$", "", name)
 
 #******************************************************************************#
 # Load roster files:----
-roster_files = paste0("Data/rosters_", 2008:2018, ".Rds")
+roster_files = paste0("Data/rosters_", 2008:2020, ".Rds")
 name <- gsub("\\.Rds$", "", roster_files) %>% 
     gsub("Data/", "", .)
 roster_data <- lapply(roster_files, readRDS)
@@ -286,4 +286,90 @@ sum(starters2018$starter_Q6) / 10
 # Save starters 2018:
 saveRDS(object = starters2018, file = paste0("Data/starters/starters_2018",".Rds"))
 #******************************************************************************#
+# calculate starters 2019: ----
+pbp <- pbp_data$`clean_pbp/pbp_2019`
+roster <- roster_data$rosters_2019
+roster2019 <- calc_starters(pbp,roster) 
+
+# pbp_starter <- pbp %>%
+#     mutate(game_q = game_id * quarter)
+# 
+# pbp_game_1 <- filter(pbp_starter,
+#                      game_q == 24156 * 1)
+# 
+# # source functions to use
+# source('functions/BBL_functions.R')
+# source('functions/pbp_actions.R')
+# solve <- calc_starters(pbp_game_1,roster)
+# view(solve)
+# debugonce(calc_starters)
+# solve2 <- calc_starters(pbp_game_1,roster)
+
+starters2019 <- roster2019 %>% 
+    mutate(starter_Q5 = replace_na(starter_Q5,0))
+starters2019$starter_Q4[starters2019$game_nr == 22072 & starters2019$Player == "Brandon, Thomas"] <- 1
+starters2019$starter_Q5[starters2019$game_nr == 24005 & starters2019$Player == "Elias, Harris"] <- 1
+starters2019$starter_Q5[starters2019$game_nr == 24077 & starters2019$Player == "Leon, Kratzer"] <- 1
+starters2019$starter_Q1[starters2019$game_nr == 24094 & starters2019$Player == "Jaleen, Smith"] <- 1
+starters2019$starter_Q4[starters2019$game_nr == 24094 & starters2019$Player == "Jaleen, Smith"] <- 1
+starters2019$starter_Q1[starters2019$game_nr == 24156 & starters2019$Player == "Quantez, Robertson"] <- 1
+
+
+#starters2018$starter_Q4[starters2018$game_nr == 22326 & grepl("Brooks",starters2018$Player)] <- 1
+
+anzahl <- unique(starters2019$game_nr) %>% as_tibble() %>% nrow()
+print(anzahl)
+sum(starters2019$starter_Q1) / 10
+sum(starters2019$starter_Q2) / 10
+sum(starters2019$starter_Q3) / 10
+sum(starters2019$starter_Q4) / 10
+sum(starters2019$starter_Q5) / 10
+sum(starters2019$starter_Q6) / 10
+
+#******************************************************************************#
+# Save starters 2019:
+saveRDS(object = starters2019, file = paste0("Data/starters/starters_2019",".Rds"))
+
+#******************************************************************************#
+# calculate starters 2020: ----
+pbp <- pbp_data$`clean_pbp/pbp_2020`
+roster <- roster_data$rosters_2020
+roster2020 <- calc_starters(pbp,roster) 
+
+pbp_starter <- pbp %>%
+    mutate(game_q = game_id * quarter)
+
+pbp_game_1 <- filter(pbp_starter,
+                     game_q == 25656 * 2)
+
+# source functions to use
+source('functions/BBL_functions.R')
+source('functions/pbp_actions.R')
+solve <- calc_starters(pbp_game_1,roster)
+view(solve)
+debugonce(calc_starters)
+solve2 <- calc_starters(pbp_game_1,roster)
+
+starters2020 <- roster2020 %>% 
+    mutate(starter_Q5 = replace_na(starter_Q5,0))
+starters2020$starter_Q4[starters2020$game_nr == 25499 & starters2020$Player == "Dennis, Clifford"] <- 1
+starters2020$starter_Q5[starters2020$game_nr == 25511 & starters2020$Player == "Wes, Clark"] <- 1
+starters2020$starter_Q3[starters2020$game_nr == 25564 & starters2020$Player == "Brandon, Thomas"] <- 1
+starters2020$starter_Q3[starters2020$game_nr == 25598 & starters2020$Player == "Benjamin, Lischka"] <- 1
+starters2020$starter_Q5[starters2020$game_nr == 25613 & starters2020$Player == "Robin, Christen"] <- 1
+starters2020$starter_Q4[starters2020$game_nr == 25621 & starters2020$Player == "Rasheed, Moore"] <- 1
+starters2020$starter_Q5[starters2020$game_nr == 25624 & starters2020$Player == "Haywood, Highsmith"] <- 1
+starters2020$starter_Q2[starters2020$game_nr == 25656 & starters2020$Player == "Paul, Zipser"] <- 1
+
+anzahl <- unique(starters2020$game_nr) %>% as_tibble() %>% nrow()
+print(anzahl)
+sum(starters2020$starter_Q1) / 10
+sum(starters2020$starter_Q2) / 10
+sum(starters2020$starter_Q3) / 10
+sum(starters2020$starter_Q4) / 10
+sum(starters2020$starter_Q5) / 10
+
+#******************************************************************************#
+# Save starters 2020:
+saveRDS(object = starters2020, file = paste0("Data/starters/starters_2020",".Rds"))
 #******************************************************************************#

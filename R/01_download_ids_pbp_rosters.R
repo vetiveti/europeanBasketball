@@ -12,7 +12,7 @@ library(tidyverse, warn.conflicts = FALSE)
 library(zoo)
 
 # Download game ID's & save: ----
-#a <- BBL_game_ids(year = 2008:2018)
+#a <- BBL_game_ids(year = 2008:2019)
 # save_rds <- ls(pattern = "identifiers_")
 # saveRDS(object = identifiers_2008, file = paste0("Data/identifiers_2008",".Rds"))
 # saveRDS(object = identifiers_2009, file = paste0("Data/identifiers_2009",".Rds"))
@@ -25,9 +25,11 @@ library(zoo)
 # saveRDS(object = identifiers_2016, file = paste0("Data/identifiers_2016",".Rds"))
 # saveRDS(object = identifiers_2017, file = paste0("Data/identifiers_2017",".Rds"))
 # saveRDS(object = identifiers_2018, file = paste0("Data/identifiers_2018",".Rds"))
+# saveRDS(object = identifiers_2019, file = paste0("Data/identifiers_2019",".Rds"))
+# saveRDS(object = identifiers_2020, file = paste0("Data/identifiers_2020",".Rds"))
 
 # load identifiers:
-game_id_files = paste0("Data/identifiers_", 2008:2018, ".Rds")
+game_id_files = paste0("Data/identifiers_", 2019:2020, ".Rds")
 name <- gsub("\\.Rds$", "", game_id_files) %>% 
     gsub("Data/", "", .)
 game_id_data <- lapply(game_id_files, readRDS)
@@ -39,40 +41,40 @@ safer_results <- possibly(get_pbp, otherwise = as_tibble("Error finding file"))
 #******************************************************************************#
 # Download PBP & save: ----
 #' do that for every year separately
-# year <- 2008
-# results <- tibble()
-# for (i in 1:nrow(game_id_data$identifiers_2008)) {
-#     all_results <- safer_results(year,game_id_data$identifiers_2008[i,])
-#     all_results$game_nr <- i
-#     results<- bind_rows(results,all_results)
-# 
-# }
-# saveRDS(object = results, file = paste0("Data/pbp",year,".Rds"))
+year <- 2019
+results <- tibble()
+for (i in 1:nrow(game_id_data$identifiers_2019)) {
+    all_results <- safer_results(year,game_id_data$identifiers_2019[i,])
+    all_results$game_nr <- i
+    results<- bind_rows(results,all_results)
+
+}
+saveRDS(object = results, file = paste0("Data/pbp",year,".Rds"))
 
 
 #******************************************************************************#
 # Download team rosters for every game: ----
-# safer_roster <- possibly(get_rosters, otherwise = as_tibble("Error finding file"))
-# 
-# year <- 2008:2018
-# 
-# for (j in year) {
-#     id_extract <- game_id_data[[paste0("identifiers_",j)]]
-#     df_roster <- tibble()
-#     
-#     for (i in 1:nrow(id_extract)) {
-#         current <- safer_roster(id_extract[i,],j)
-#         df_roster <- bind_rows(df_roster,current)
-#         
-#     }
-#     assign(paste0("rosters_",j),df_roster)
-#     saveRDS(object = get(paste0("rosters_",j)),file = paste0("Data/rosters_",j,".Rds"))
-# }
+safer_roster <- possibly(get_rosters, otherwise = as_tibble("Error finding file"))
+
+year <- 2019:2020
+
+for (j in year) {
+    id_extract <- game_id_data[[paste0("identifiers_",j)]]
+    df_roster <- tibble()
+
+    for (i in 1:nrow(id_extract)) {
+        current <- safer_roster(id_extract[i,],j)
+        df_roster <- bind_rows(df_roster,current)
+
+    }
+    assign(paste0("rosters_",j),df_roster)
+    saveRDS(object = get(paste0("rosters_",j)),file = paste0("Data/rosters_",j,".Rds"))
+}
 
 #******************************************************************************#
 # Download Coach data:----
 
-jahre <- 2017:2018
+jahre <- 2019:2020
 coach_data1 <- tibble()
 for (i in jahre) {
     year <- i
@@ -80,7 +82,8 @@ for (i in jahre) {
     coach_data1 <- bind_rows(coach_data1,coaches_cur)
 }
 
-coaches <- bind_rows(coach_data,coach_data1)
+coaches <- coach_data1
+    #bind_rows(coach_data,coach_data1)
 
 coaches$team[coaches$team == "s.Oliver Baskets"] <- "s.Oliver Würzburg"
 coaches$team[coaches$team == "s.Oliver Würzurg"] <- "s.Oliver Würzburg"
@@ -88,6 +91,9 @@ coaches$team[coaches$team == "SYNTAINICS MBC"] <- "Mitteldeutscher BC"
 coaches$team[coaches$team == "Brose Baskets"] <- "Brose Bamberg"
 coaches$team[coaches$team == "HAKRO Merlins Crailsheim"] <- "Crailsheim Merlins"
 
-saveRDS(object = coaches, file = paste0("Data/coach_data_bbl.Rds"))
-coaches <- readRDS("Data/coach_data_bbl.Rds")
+saveRDS(object = coaches, file = paste0("Data/coach_data_bbl_1920.Rds"))
 
+coaches <- readRDS("Data/coach_data_bbl.Rds")
+coaches <- bind_rows(coaches,coach_data1)
+
+saveRDS(object = coaches, file = paste0("Data/coach_data_bbl.Rds"))

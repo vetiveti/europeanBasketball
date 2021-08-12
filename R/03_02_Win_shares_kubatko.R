@@ -14,7 +14,7 @@ library(tidyverse)
 player_totals <- readRDS("Data/player_data_totals.Rds") %>% 
     rename(min = min_p) %>%
     filter(min > 0) %>% 
-    select(-pf_p)
+    dplyr::select(-PF_perc)
 
 team_totals <- readRDS("Data/team_data_totals.Rds")
 
@@ -24,7 +24,11 @@ a <- merge(player_totals,team_totals, by = c("team","year"), suffix = c("_p","_t
 
 #******************************************************************************#
 # calc. scoring possessions ----
-a <- a %>% 
+#Individual scoring possessions reflect a player's contributions to a
+# team's scoring possessions. The first contribution is through field goals,
+#sharing credit with those who assisted on the shots:
+    
+scoring_poss <- a %>% 
     mutate(qAST = ((min_p / (min_t / 5)) * (1.14 * ((ast_t - ast_p) / fgm_t))) + 
                ((((ast_t / min_t) * min_p * 5 - ast_p) / ((fgm_t / min_t) * min_p * 5 - fgm_p)) * (1 - (min_p / (min_t / 5)))),
            
@@ -51,7 +55,7 @@ a <- a %>%
 
 #******************************************************************************#
 # Missed FG and Missed FT Possessions:----
-a <- a %>% 
+tot_poss <- scoring_poss %>% 
     mutate(
         FGxPoss = (fga_p - fgm_p) * (1 - 1.07 * ORB_t_pct),
         FTxPoss = ifelse(fta_p>0, ((1 - (ftm_p / fta_p))^2) * 0.4 * fta_p, 0) 
@@ -59,16 +63,16 @@ a <- a %>%
 
 #******************************************************************************#
 # Total Possessions:----
-a <- a %>% 
+tot_poss <- tot_poss %>% 
     mutate(TotPoss = ScPoss + FGxPoss + FTxPoss + tov_p)
 
-totposs_t <- a %>%
+totposs_t <- tot_poss %>%
     group_by(team,year) %>% 
     mutate(tot_poss_t = sum(TotPoss)) %>% 
     select(player,team,year,tot_poss_t,qAST,min_p)
 #******************************************************************************#
 # Individual Points Produced:----
-a <- a %>% 
+PTS_prod <- tot_poss %>% 
     mutate(
         PProd_FG_Part = ifelse(fga_p > 0, 2 * (fgm_p + 0.5 * p3m_p) * (1 - 0.5 * ((pts_p - ftm_p) / (2 * fga_p)) * qAST),0),
         PProd_AST_Part = 2 * ((fgm_t - fgm_p + 0.5 * (p3m_t - p3m_p)) / (fgm_t - fgm_p)) * 0.5 * (((pts_t - ftm_t) - (pts_p - ftm_p)) / (2 * (fga_t - fga_p))) * ast_p,
@@ -76,23 +80,27 @@ a <- a %>%
         
         PProd = (PProd_FG_Part + PProd_AST_Part + ftm_p) * (1 - (orb_t / Team_Scoring_Poss) * ORB_t_Weight * Team_Play_pct) + PProd_ORB_Part)
 
-aa <- a %>% 
+aa <- PTS_prod %>% 
     select(player,team,fgm_p,pts_p,ftm_p,fga_p,PProd_FG_Part,PProd)
 
 #******************************************************************************#
 # Individual offensive rating:----
-a <- a %>% 
-    mutate(ORtg = 100 * (PProd / TotPoss))
+oRTG <- PTS_prod %>% 
+    mutate(ORtg = 100 * (PProd / TotPoss),
+           poss_t = 0.5 *
+               ((fga_t + 0.4 * fta_t - 1.07 * (orb_t / (orb_t + opp_drb)) * (fga_t - fgm_t) + tov_t) +
+                    (opp_fga + 0.4 * opp_fta - 1.07 * (opp_orb / (opp_orb + drb_t)) * (fga_t - opp_fgm) + opp_tov))
+           )
 
 #******************************************************************************#
-# Individual defensive stops----
-c <- a %>% 
+# Possessions & League averages:----
+poss_t <- a %>% 
     mutate(poss_t = 0.5 *
                ((fga_t + 0.4 * fta_t - 1.07 * (orb_t / (orb_t + opp_drb)) * (fga_t - fgm_t) + tov_t) +
                     (opp_fga + 0.4 * opp_fta - 1.07 * (opp_orb / (opp_orb + drb_t)) * (fga_t - opp_fgm) + opp_tov))
     )
 
-lg_avg <- c %>% 
+lg_avg <- poss_t %>% 
     group_by(year) %>% 
     mutate(avg_ppp_t = pts_t / poss_t,
            avg_ppg_t = pts_t / G_t,
@@ -106,10 +114,10 @@ lg_avg <- c %>%
     select(year,ppp,ppg,pace)
 
 #******************************************************************************#
-
-c <- c %>% 
+# Individual stop percentage:----
+stop_pct <- poss_t %>% 
     mutate(
-        dor_pct = opp_drb / (opp_orb + drb_t),
+        dor_pct = opp_orb / (opp_orb + drb_t),
         dfg_pct = opp_fgm / opp_fga,
         FMwt = (dfg_pct * (1 - dor_pct)) / (dfg_pct * (1 - dor_pct) + (1 - dfg_pct) * dor_pct),
         Stops1 = stl_p + blk_p * FMwt * (1 - 1.07 * dor_pct) + drb_p * (1 - FMwt),
@@ -119,12 +127,11 @@ c <- c %>%
         
         Stops = Stops1 + Stops2,
         Stop_pct = (Stops * opp_min) / (poss_t * min_p)
-        
     )
 
 #******************************************************************************#
-# Individual defensive stops----
-c <- c %>% 
+# Individual defensive rating:----
+dRTG <- stop_pct %>% 
     mutate(
         Team_Defensive_Rating = 100 * (opp_pts / poss_t),
         D_Pts_per_ScPoss = opp_pts / (opp_fgm + (1 - (1 - (opp_ftm / opp_fta))^2) * opp_fta*0.4),
@@ -133,9 +140,10 @@ c <- c %>%
     )
 
 #******************************************************************************#
+# WIN SHARES:----
 # offensive win shares:----
-c1 <- merge(c,lg_avg, by = "year")
-d <- c1 %>% 
+oRTG_merg <- merge(oRTG,lg_avg, by = "year")
+oWin_shares <- oRTG_merg %>% 
     mutate(marg_off = PProd - 0.92 * ppp * TotPoss,
            pace_t = (poss_t * 2 * 40) / (2 * min_t / 5),
            marg_ppw = 0.32 * ppg * (pace_t / pace),
@@ -143,24 +151,28 @@ d <- c1 %>%
 
 #******************************************************************************#
 # defensive win shares----
-e <- d %>% 
+dRTG_merg <- merge(dRTG,lg_avg, by = "year")
+dWin_shares <- dRTG_merg %>% 
     mutate(
         marg_def = (min_p / min_t * poss_t)  * ((1.08 * ppp) - DRtg / 100),
-        dwin_share = marg_def / marg_ppw
-    )
+        pace_t = (poss_t * 2 * 40) / (2 * min_t / 5),
+        marg_ppw = 0.32 * ppg * (pace_t / pace),
+        dwin_share = marg_def / marg_ppw)
 
 #******************************************************************************#
 # total win shares----
-f <- e %>% 
-    mutate(win_shares = owin_share + dwin_share)
-
-sum(f$win_shares)
-
-win_shares <- select(f,
-                    player, team,year, min_p, owin_share, dwin_share, win_shares) %>% 
+win_shares_merg <- merge(oWin_shares,dWin_shares, by = c("year","team","player","min_p"))
+Win_Shares <- win_shares_merg %>% 
+    mutate(win_shares = owin_share + dwin_share) %>% 
+    dplyr::select(player, team,year, min_p, owin_share, dwin_share, win_shares) %>% 
     arrange(-win_shares)
+
+sum(Win_Shares$win_shares)
 
 #******************************************************************************#
 # save final win shares in data frame: ----
-saveRDS(object = win_shares, file = paste0("Data/win_shares.Rds"))
+saveRDS(object = Win_Shares, file = paste0("Data/estimates/win_shares.Rds"))
 
+attach(oRTG)
+mean((orb_t / Team_Scoring_Poss) * ORB_t_Weight * Team_Play_pct)
+detach(oRTG)

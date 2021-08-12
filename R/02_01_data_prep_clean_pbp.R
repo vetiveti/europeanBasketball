@@ -10,7 +10,7 @@ library(tidyverse, warn.conflicts = FALSE)
 
 #******************************************************************************#
 # Load roster files:----
-roster_files = paste0("Data/rosters_", 2008:2018, ".Rds")
+roster_files = paste0("Data/rosters_", 2008:2020, ".Rds")
 name <- gsub("\\.Rds$", "", roster_files) %>% 
     gsub("Data/", "", .)
 roster_data <- lapply(roster_files, readRDS)
@@ -18,7 +18,7 @@ names(roster_data) <- gsub("\\.Rds$", "", name)
 
 #******************************************************************************#
 # load identifiers: ----
-game_id_files = paste0("Data/identifiers_", 2008:2018, ".Rds")
+game_id_files = paste0("Data/identifiers_", 2008:2020, ".Rds")
 name <- gsub("\\.Rds$", "", game_id_files) %>% 
     gsub("Data/", "", .)
 game_id_data <- lapply(game_id_files, readRDS)
@@ -29,7 +29,7 @@ safer_results <- possibly(get_pbp, otherwise = as_tibble("Error finding file"))
 
 #******************************************************************************#
 # Load play by play files: ----
-pbp_files = paste0("Data/pbp", 2008:2018, ".Rds")
+pbp_files = paste0("Data/pbp", 2008:2020, ".Rds")
 name <- gsub("\\.Rds$", "", pbp_files) %>% 
     gsub("Data/", "", .)
 pbp_data <- lapply(pbp_files, readRDS)
@@ -217,5 +217,77 @@ pbp <- pbp %>%
 # Save cleaned pbp files 2018:
 saveRDS(object = pbp, file = paste0("Data/clean_pbp/pbp_2018",".Rds"))
 
+#******************************************************************************#
+# Clean pbp data 2019: ----
+# prepare game ids
+id <- game_id_data$identifiers_2019
+
+# prepare pbp data
+pbp <- pbp_data$pbp2019 %>% 
+    arrange(desc(spielzeit_sec )) %>% 
+    arrange(game_nr)
+
+# prepare roster data
+roster <- roster_data$rosters_2019 %>% 
+    type_convert() %>%
+    drop_na(.,Club)
+unique(roster$Club)
+roster$Club[roster$Club == "SYNTAINICS MBC"] <- "Mitteldeutscher BC"
+unique(roster$Club)
+
+id_merge <- bind_cols(id, unique(pbp$game_nr)) %>% 
+    rename(nr = `...3`)
+
+pbp <- merge(pbp,id_merge,
+             by.x = "game_nr",
+             by.y = "nr") %>% 
+    dplyr::select(-game_nr)
+
+# clean for games which have no files
+pbp <- pbp %>%
+    mutate_at("value", ~replace(., is.na(.), 0)) %>% 
+    filter(value != "Error finding file")
+
+#******************************************************************************#
+# Save cleaned pbp files 2019:
+saveRDS(object = pbp, file = paste0("Data/clean_pbp/pbp_2019",".Rds"))
+
+#******************************************************************************#
+#******************************************************************************#
+# Clean pbp data 2020: ----
+# prepare game ids
+id <- game_id_data$identifiers_2020
+
+# prepare pbp data
+pbp <- pbp_data$pbp2020 %>% 
+    arrange(desc(spielzeit_sec )) %>% 
+    arrange(game_nr)
+
+# prepare roster data
+roster <- roster_data$rosters_2020 %>% 
+    type_convert() %>%
+    drop_na(.,Club)
+unique(roster$Club)
+roster$Club[roster$Club == "SYNTAINICS MBC"] <- "Mitteldeutscher BC"
+roster$Club[roster$Club == "BG GA#ttingen"] <- "BG Göttingen"
+roster$Club[roster$Club == "Basketball LA#wen Braunschweig"] <- "Basketball Löwen Braunschweig"
+unique(roster$Club)
+
+id_merge <- bind_cols(id, unique(pbp$game_nr)) %>% 
+    rename(nr = `...3`)
+
+pbp <- merge(pbp,id_merge,
+             by.x = "game_nr",
+             by.y = "nr") %>% 
+    dplyr::select(-game_nr)
+
+# clean for games which have no files
+pbp <- pbp %>%
+    mutate_at("value", ~replace(., is.na(.), 0)) %>% 
+    filter(value != "Error finding file")
+
+#******************************************************************************#
+# Save cleaned pbp files 2020:
+saveRDS(object = pbp, file = paste0("Data/clean_pbp/pbp_2020",".Rds"))
 #******************************************************************************#
 #******************************************************************************#

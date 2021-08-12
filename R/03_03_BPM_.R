@@ -14,7 +14,7 @@ require(openxlsx)
 # load data----
 player_totals <- readRDS("Data/player_data_totals.Rds") %>% 
   rename(min = min_p) %>% 
-  select(-pf_p)
+  dplyr::select(-PF_perc)
 
 team_totals <- readRDS("Data/team_data_totals.Rds") 
 
@@ -533,4 +533,4 @@ BPM_final <- merge(BPM_for_merge, OBPM_for_merge, by = c("player","team","year")
 
 #******************************************************************************#
 # save final win shares in data frame: ----
-saveRDS(object = BPM_final, file = paste0("Data/BPM_final.Rds"))
+saveRDS(object = BPM_final, file = paste0("Data/estimates/BPM_final.Rds"))

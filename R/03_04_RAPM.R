@@ -76,7 +76,10 @@ df_new[df_new == "Darvin, Davis"] <- "Darwin, Davis"
 df_new[df_new == "E. J., Singler"] <- "E.J., Singler"
 df_new[df_new == "Jonas, Wohlfarth-B."] <- "Jonas, Wohlfarth-Bottermann"
 df_new[df_new == "Ra#Shad, James"] <- "Ra'Shad, James"
-
+df_new[df_new == "Konstantin, Klein"] <- "Konstantin, Konga"
+df_new[df_new == "Leon Iduma, Okpara"] <- "Leon, Okpara"
+df_new[df_new == "Quirin, Emanga Noupoue"] <- "Quirin, Emanga"
+df_new[df_new == "Zan Mark, Sisko"] <- "Zan, Sisko"
 
 df <- df_new %>% 
     mutate_all(na_if,"") %>% 
@@ -84,6 +87,11 @@ df <- df_new %>%
 df$spielstand_A[df$quarter == 1 & df$aktion == "START" ] = 0
 df$spielstand_B[df$quarter == 1 & df$aktion == "START" ] = 0
 
+#******************************************************************************#
+# Save untouched pbp file:----
+saveRDS(object = df, file = paste0("Data/pbp_untouched",".Rds"))
+
+#******************************************************************************#
 # errors in pbp... bestimmt nicht alles...
 df$nummer_aktion[df$game_id == 19579 & df$quarter == 1 & df$nummer_aktion == 99] <- 30.1
 df$nummer_aktion[df$game_id == 19579 & df$quarter == 1 & df$nummer_aktion == 100] <- 30.2
@@ -310,9 +318,14 @@ make_matrix_rows <- function(lineup, players_in) {
     
 }
 
+possesion_data <- possesion_data %>% 
+    relocate(game_id, .after = def_player5)
+
 player_matrix <- t(apply(possesion_data[, 1:10], 1, 
                          function(x) make_matrix_rows(lineup = x, players_in = players)))
 
+#******************************************************************************#
+# Possession for each player:----
 a <- player_matrix %>% as_tibble()
 colnames(a)
 b<- colSums(a) %>% as_tibble()
@@ -333,12 +346,33 @@ poss_player_combined <- poss_p %>%
     distinct(.,Player, .keep_all = TRUE) %>% 
     select(Player, poss_total_player)
 
+#******************************************************************************#
+# save player small player matrix & possession numbers
+
 player_matrix <- as(player_matrix, "dgCMatrix")
 
 saveRDS(object = player_matrix, file = paste0("Data/player_matrix_2018.Rds"))
+saveRDS(object = poss_player_combined, file = paste0("Data/poss_player_combined_2018.Rds"))
 
+#******************************************************************************#
+library(tidyverse)
+library(Matrix)
+library(glmnet)
+library(knitr)
+
+#******************************************************************************#
+# load data
+player_matrix <- readRDS("Data/player_matrix_2018.Rds")
+poss_player_combined <- readRDS("Data/poss_player_combined_2018.Rds")
+possesion_data <- readRDS("data/possessions.Rds") %>% 
+    filter(year > 2013)
+
+possesion_data <- possesion_data %>% 
+    mutate(ppp100 = 100 * points/possesion)
+
+#******************************************************************************#
 target <- possesion_data$ppp100
-weight <- possesion_data$year - 2013
+weight <- rep(1, nrow(possesion_data)) #(possesion_data$year - 2013)
 print(dim(player_matrix))
 
 
@@ -392,18 +426,27 @@ ggplot(data = rapm, aes(x=RAPM))+
     geom_histogram()
 
 #******************************************************************************#
+# Save RAPM file:----
+saveRDS(object = rapm_pos, file = paste0("Data/estimates/rapm",".Rds"))
+
+#******************************************************************************#
+
+#******************************************************************************#
 library(doParallel)
 target <- possesion_data$ppp100
 player_matrix <- player_matrix
-lambdas = NULL
+
 require(doParallel)
 registerDoParallel(15)
-for (i in 1:10){
+
+lambdas = NULL
+for (i in 1:8){
     set.seed( as.integer((as.double(Sys.time())*i+Sys.getpid()) %% 2^31) )
-    fit <- cv.glmnet(x = player_matrix,y = target,alpha=0,weights= NULL,nfolds=10,parallel=TRUE,standardize=FALSE,lambda=seq(1, 1.5, by=0.01))
+    fit <- cv.glmnet(x = player_matrix,y = target,alpha=0,weights= NULL,nfolds=10,parallel=TRUE,standardize=FALSE,lambda=seq(1.2, 1.5, by=0.005))
     errors = data.frame(fit$lambda,fit$cvm)
     lambdas <- rbind(lambdas,errors)
 }
+
 lambdas <- aggregate(lambdas[, 2], list(lambdas$fit.lambda), mean)
 bestindex = which(lambdas[2]==min(lambdas[2]))
 bestlambda = lambdas[bestindex,1]
@@ -430,11 +473,33 @@ rapm1 <- left_join(o_rapm_frame, d_rapm_frame, by = "player_id") %>%
                   `D-RAPM` = d_rapm) %>% 
     arrange(-RAPM)    
 
-kable(rapm1[1:5, ] %>% 
+kable(rapm1[1:20, ] %>% 
           mutate(across(where(is.numeric), function(x) round(x, 1))), align = "c") 
 
 rapm1_pos <- merge(rapm1, poss_player_combined, by = "Player") %>% 
     arrange(-RAPM)
 
-kable(rapm1_pos[1:6, ] %>% 
+kable(rapm1_pos[1:20, ] %>% 
           mutate(across(where(is.numeric), function(x) round(x, 1))), align = "c") 
+
+#******************************************************************************#
+# https://squared2020.com/2017/09/18/deep-dive-on-regularized-adjusted-plus-minus-ii-basic-application-to-2017-nba-data-with-r/
+# approach:
+# denke ist nicht so wichtig...
+# dauert sehr lange zu rechnen da für alle lambdas geschaut wird und der Datensatz darf nicht zu groß sein!
+
+library(broom)
+library(MASS)
+
+possessions <- possesion_data %>% 
+    ungroup() %>% 
+    filter(., year == 2018) %>% 
+    dplyr::select(off_player1:def_player5,ppp100) %>% 
+    rename(Margin = ppp100)
+
+rapm2 <- lm.ridge(formula = Margin ~ . , data = possessions, lambda = seq(0,20000,200))
+r2 <- tidy(rapm2)
+g <- glance(rapm2)
+ggplot(r2, aes(lambda, GCV)) +
+    geom_line() +
+    geom_vline(xintercept = g$lambdaGCV, col = "red", lty = 2)

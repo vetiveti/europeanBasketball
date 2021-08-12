@@ -9,7 +9,7 @@ source('functions/BBL_functions.R')
 source('functions/pbp_actions.R')
 library(tidyverse, warn.conflicts = FALSE)
 require(data.table)
-
+require(zoo)
 #******************************************************************************#
 # Load cleaned pbp files: ----
 files <- list.files(path = './data/clean_pbp', pattern ='pbp')
@@ -33,7 +33,7 @@ starter = rbindlist(starter_list, fill = TRUE, idcol="year") %>%
     mutate(year = year +2013)
 
 #******************************************************************************#
-# Boxscores teams totals: ----
+# Box scores teams totals: ----
 un <- unique(roster$game_nr)
 
 id_plus_teams <- tibble(id = un,
@@ -72,6 +72,9 @@ bx_teams$team[bx_teams$team == "s.Oliver Würzurg"] <- "s.Oliver Würzburg"
 bx_teams$team[bx_teams$team == "SYNTAINICS MBC"] <- "Mitteldeutscher BC"
 bx_teams$team[bx_teams$team == "Brose Baskets"] <- "Brose Bamberg"
 bx_teams$team[bx_teams$team == "HAKRO Merlins Crailsheim"] <- "Crailsheim Merlins"
+bx_teams$team[bx_teams$team == "BG GA#ttingen"] <- "BG Göttingen"
+bx_teams$team[bx_teams$team == "Basketball LA#wen Braunschweig"] <- "Basketball Löwen Braunschweig"
+bx_teams$team[bx_teams$team == "JobStairs GIESSEN 46ers"] <- "GIESSEN 46ers"
 unique(bx_teams$team)
 
 # bx_teams:----
@@ -101,13 +104,13 @@ team_totals <- team_totals %>%
     drop_na()
 
 #******************************************************************************#
-# boxscore team pg:----
+# box score team pg:----
 team_pg <- team_totals %>% 
     mutate(across(.cols = min:opp_pts, ~ .x / G),
            win_pct = W/G)
 
 #******************************************************************************#
-# boxscore players pg & totals: ----
+# box score players pg & totals: ----
 players <- roster %>% 
     mutate_at("value", ~replace(., is.na(.), 0)) %>% 
     filter(value != "Error finding file")
@@ -115,6 +118,7 @@ players <- roster %>%
 
 length(unique(pbp$game_id))
 length(unique(players$game_nr))
+
 
 player_tot_perTeam_pg <- tibble()
 for(i in unique(pbp$game_id)) {
@@ -157,7 +161,9 @@ player_tot_perTeam$team[player_tot_perTeam$team == "s.Oliver Würzurg"] <- "s.Oli
 player_tot_perTeam$team[player_tot_perTeam$team == "SYNTAINICS MBC"] <- "Mitteldeutscher BC"
 player_tot_perTeam$team[player_tot_perTeam$team == "Brose Baskets"] <- "Brose Bamberg"
 player_tot_perTeam$team[player_tot_perTeam$team == "HAKRO Merlins Crailsheim"] <- "Crailsheim Merlins"
-
+player_tot_perTeam$team[player_tot_perTeam$team == "BG GA#ttingen"] <- "BG Göttingen"
+player_tot_perTeam$team[player_tot_perTeam$team == "Basketball LA#wen Braunschweig"] <- "Basketball Löwen Braunschweig"
+player_tot_perTeam$team[player_tot_perTeam$team == "JobStairs GIESSEN 46ers"] <- "GIESSEN 46ers"
 
 player_tot_perTeam <- player_tot_perTeam %>% 
     group_by(player,team, year) %>% 
@@ -167,10 +173,10 @@ player_tot_perTeam <- player_tot_perTeam %>%
 
 #' assists are tricky!
 #' in the NBA assists are not granted for pass before FT in the FIBA world the count as assists!
-#' I compute the NBA style assists as I work with methods which are developed for the NBA
+#' I compute the BBL style for comparison reasons
 
 #******************************************************************************#
-# calc. minutes played:
+# calc. minutes played:----
 # source('functions/BBL_functions.R')
 # debugonce(playing_time)
 # z <- tibble()
@@ -219,12 +225,19 @@ play_time$player[play_time$player == "Darvin, Davis"] <- "Darwin, Davis"
 play_time$player[play_time$player == "E. J., Singler"] <- "E.J., Singler"
 play_time$player[play_time$player == "Jonas, Wohlfarth-B."] <- "Jonas, Wohlfarth-Bottermann"
 play_time$player[play_time$player == "Ra#Shad, James"] <- "Ra'Shad, James"
+play_time$player[play_time$player == "Konstantin, Klein"] <- "Konstantin, Konga"
+play_time$player[play_time$player == "Leon Iduma, Okpara"] <- "Leon, Okpara"
+play_time$player[play_time$player == "Quirin, Emanga Noupoue"] <- "Quirin, Emanga"
+play_time$player[play_time$player == "Zan Mark, Sisko"] <- "Zan, Sisko"
 play_time$Club[play_time$Club == "Oettinger Rockets"] <- "Rockets"
 play_time$Club[play_time$Club == "s.Oliver Baskets"] <- "s.Oliver Würzburg"
 play_time$Club[play_time$Club == "s.Oliver Würzurg"] <- "s.Oliver Würzburg"
 play_time$Club[play_time$Club == "SYNTAINICS MBC"] <- "Mitteldeutscher BC"
 play_time$Club[play_time$Club == "Brose Baskets"] <- "Brose Bamberg"
 play_time$Club[play_time$Club == "HAKRO Merlins Crailsheim"] <- "Crailsheim Merlins"
+play_time$Club[play_time$Club == "BG GA#ttingen"] <- "BG Göttingen"
+play_time$Club[play_time$Club == "Basketball LA#wen Braunschweig"] <- "Basketball Löwen Braunschweig"
+play_time$Club[play_time$Club == "JobStairs GIESSEN 46ers"] <- "GIESSEN 46ers"
 unique(play_time$Club)
 
 games_played  <- play_time %>%              # Count rows by group
@@ -238,6 +251,15 @@ df <- play_time1 %>% group_by(player,Club,year) %>%
     summarize(Sum_sec = sum(sec_total), .groups = "drop") %>% 
     mutate(min_sec_played = lubridate::seconds_to_period(Sum_sec)) %>% 
     mutate(min_sec = round(Sum_sec / 60, digits = 2))
+
+# save player info:
+saveRDS(object = df, file = paste0("Data/playing_time_player",".Rds"))
+
+unique(df$Club)
+unique(player_tot_perTeam$team)
+
+# save player info:
+saveRDS(object = player_tot_perTeam, file = paste0("Data/player_tot_perTeam_123",".Rds"))
 
 #******************************************************************************#
 # Merge boxscore & playing time:
@@ -260,14 +282,38 @@ gc()
 system("taskkill /im java.exe /f", intern=FALSE, ignore.stdout=FALSE)
 
 # 2014
-player_info5 <- pos_cm_kg(2014)
 player_info1 <- pos_cm_kg(2015)
+# save player info:
+saveRDS(object = player_info1, file = paste0("Data/player_info/player_info2015",".Rds"))
+
 player_info2 <- pos_cm_kg(2016)
+# save player info:
+saveRDS(object = player_info2, file = paste0("Data/player_info/player_info2016",".Rds"))
+
 player_info3 <- pos_cm_kg(2017)
+# save player info:
+saveRDS(object = player_info3, file = paste0("Data/player_info/player_info2017",".Rds"))
+
 player_info4 <- pos_cm_kg(2018)
+# save player info:
+saveRDS(object = player_info4, file = paste0("Data/player_info/player_info2018",".Rds"))
+
+player_info5 <- pos_cm_kg(2014)
+# save player info:
+saveRDS(object = player_info5, file = paste0("Data/player_info/player_info2014",".Rds"))
+
+player_info6 <- pos_cm_kg(2019)
+# save player info:
+saveRDS(object = player_info6, file = paste0("Data/player_info/player_info2019",".Rds"))
+
+player_info7 <- pos_cm_kg(2020) %>% 
+    distinct(., player, .keep_all = TRUE)
+# save player info:
+saveRDS(object = player_info2020, file = paste0("Data/player_info/player_info2020",".Rds"))
 
 player_info <- bind_rows(player_info5, player_info1, player_info2, player_info3,
-                         player_info4, .id="id")
+                         player_info4, player_info6, 
+                         player_info2020, .id="id")
 player_info$player[player_info$player == "Chad, Topper"] <- "Chad, Toppert"
 player_info$player[player_info$player == "Jake, O#Brien"] <- "Jake, O'Brien"
 player_info$player[player_info$player == "Jake, O`Brien"] <- "Jake, O'Brien"
@@ -282,9 +328,40 @@ player_info$player[player_info$player == "Darvin, Davis"] <- "Darwin, Davis"
 player_info$player[player_info$player == "E. J., Singler"] <- "E.J., Singler"
 player_info$player[player_info$player == "Jonas, Wohlfarth-B."] <- "Jonas, Wohlfarth-Bottermann"
 player_info$player[player_info$player == "Ra#Shad, James"] <- "Ra'Shad, James"
+player_info$player[player_info$player == "Konstantin, Klein"] <- "Konstantin, Konga"
+player_info$player[player_info$player == "Leon Iduma, Okpara"] <- "Leon, Okpara"
+player_info$player[player_info$player == "Quirin, Emanga Noupoue"] <- "Quirin, Emanga"
+player_info$player[player_info$player == "Zan Mark, Sisko"] <- "Zan, Sisko"
+
+# check if the !same! player has different entries 
+# z <- player_info %>% 
+#     arrange(player)
+# 
+# c <- player_info %>% 
+#     arrange(player) %>% 
+#     distinct(.,player, .keep_all = TRUE)
+# 
+# a <- c %>% 
+#     arrange(player) %>% 
+#     dplyr::select(-id, -player,-year, -Alter, -`Letzter Verein`, -left_team,- not_played, -Nr.)
+# b <- a %>% 
+#     #group_by(year) %>% 
+#     base::duplicated()
+# 
+# d <- a %>% 
+#     #group_by(year) %>% 
+#     base::duplicated(.,fromLast =TRUE)
+# zz <- c
+# zz$dup <- as.integer(b)
+# zz$dup2 <- as.integer(d)
+# 
+# zz <- zz %>%
+#     filter(dup == 1 | dup2 == 1)
 
 # save player info:
 saveRDS(object = player_info, file = paste0("Data/player_info",".Rds"))
+# read Rds
+player_info <- readRDS("Data/player_info.Rds")
 
 player_data_info<- merge(player_data,player_info,
                          by = c("player","year")) %>% 
@@ -317,6 +394,7 @@ team_for_merge <- team_totals %>%
     select(team, opp_ftm, pf, G, year) %>% 
     rename(pf_t = pf) %>% 
     rename(G_t = G)
+unique(team_for_merge$team)
 
 player_for_merge <- player_data_info %>% 
     select(player, team, pf,G,year) %>% 

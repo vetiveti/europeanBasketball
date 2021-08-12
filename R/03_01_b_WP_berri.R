@@ -428,7 +428,7 @@ wp_berri_b <- wins_produced %>%
     select(player,team,year,min_p,PROD_adj_total) %>% 
     rename(wp = PROD_adj_total)
 
-saveRDS(object = wp_berri_b, file = paste0("Data/wp_berri_b.Rds"))
+saveRDS(object = wp_berri_b, file = paste0("Data/estimates/wp_berri_b.Rds"))
 
 #******************************************************************************#
 # Comparison:----

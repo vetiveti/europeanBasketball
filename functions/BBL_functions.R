@@ -119,13 +119,13 @@ get_pbp <- function(year, game_id){
         mutate(Pos = Posshort, .keep ="unused") %>% 
         relocate(Player, Pos, .before = Is)
     
-    assign('roster',roster, envir=.GlobalEnv)
+    #assign('roster',roster, envir=.GlobalEnv)
     
     roster_h <- filter(roster, TC =="A")
     roster_a <- filter(roster, TC =="B")
     
     roster_merge <- roster %>% 
-        select(TC, Nr, Player, Club)
+        dplyr::select(TC, Nr, Player, Club)
     
     
     # get PbP for each quarter played
@@ -343,13 +343,13 @@ calc_starters <- function(pbp_game,roster){
                 sub_out <- nrow(filter(pbp, aktion == "SUBST", Player_1 == player))
                 
                 act_sub_out<- filter(pbp, aktion == "SUBST", Player_1 == player) %>% 
-                    select(nummer_aktion)
+                    dplyr::select(nummer_aktion)
                 
                 # subbed in
                 sub_in <- nrow(filter(pbp, aktion == "SUBST", Player_2 == player))
                 
                 act_sub_in<- filter(pbp, aktion == "SUBST", Player_2 == player) %>% 
-                    select(nummer_aktion)
+                    dplyr::select(nummer_aktion)
                     
                 if(sub_out > 0 && sub_in > 0){
                     
@@ -444,10 +444,16 @@ pos_cm_kg <- function(year){
             str_c(collapse = "") %>%
             xml2::read_html()
         
-        current_team <- page %>%
+        current_team_1 <- page %>%
             rvest::html_node(css = "table") %>% 
             rvest::html_table()
         
+        img.url <- page %>%
+            rvest::html_node(css = "table") %>%
+            rvest::html_nodes("img") %>% 
+            rvest::html_attr("src")
+        
+        current_team <- cbind(current_team_1,img.url)
         all_team_rosters <- rbind(all_team_rosters,current_team)
     }
     
@@ -463,7 +469,7 @@ pos_cm_kg <- function(year){
     all_team_rosters$player <- gsub("\\*","",all_team_rosters$player)
     
     rosters <- all_team_rosters %>% 
-        select(player,Nr.,Geburtsdatum:left_team,not_played) %>% 
+        dplyr::select(player,Nr.,Geburtsdatum:left_team,not_played,img.url) %>% 
         mutate(not_played = ifelse(not_played+left_team>1,0,not_played))
     rosters$year <- year
     rosters$player <- trimws(rosters$player)
@@ -561,7 +567,7 @@ playing_time <- function(roster_game, pbp_game){
     }
     
     
-    pbp_merge <- na.locf(pbp_merg, na.rm = FALSE)
+    pbp_merge <- zoo::na.locf(pbp_merg, na.rm = FALSE)
     
     cols <- c("V1","V2","V3","V4","V5","V6","V7","V8","V9","V10")
     
@@ -802,4 +808,79 @@ get_coaches <- function(year){
     coach$team <- trimws(coach$team)
     
     return(coach)
+}
+
+# Team PNGs
+image_team <- function(year){
+    #' start R Selenium
+    remDr <- RSelenium::rsDriver(verbose = T,
+                                 remoteServerAddr = "localhost",
+                                 port = 4444L,
+                                 browser=c("firefox"))
+    rm <- remDr$client
+    rm$navigate("https://www.easycredit-bbl.de/de/saison/tabelle/gesamt/") 
+    Sys.sleep(2)
+    
+    base <- "//select[@id='saison']/option[@value="
+    year_id <- glue::glue('{base}', "\'",
+                          year,"\']") %>% as.character()
+    
+    option_season <- rm$findElement(using = 'xpath', year_id)
+    option_season$clickElement()
+    
+    page <- unlist(rm$getPageSource())
+    
+    page <- page %>%
+        readr::read_lines() %>%
+        str_replace_all("<!--|-->", "") %>%
+        str_trim() %>%
+        stringi::stri_trans_general("ASCII-Latin") %>%
+        str_c(collapse = "") %>%
+        xml2::read_html()
+    
+    xml_tables <- page %>%
+        rvest::html_nodes(css = "[href*='/de/easycredit-bbl/historie/teams/t/']")
+    
+    team_urls <- xml_tables %>%
+        rvest::html_attr("href")
+    
+    team_urls<- unique(team_urls)
+    
+    b <- paste0(year,"-",year+1)
+    a <- grepl(b,team_urls)
+    team_urls <- team_urls[a]
+    
+    current_team_1 <- page %>%
+        rvest::html_node(css = "table") %>% 
+        rvest::html_table()
+    
+    img.url <- page %>%
+        rvest::html_node(css = "table") %>%
+        rvest::html_nodes("img") %>% 
+        rvest::html_attr("src")
+    
+    all_team_rosters <- cbind(current_team_1,img.url) %>% 
+        dplyr::select(Team,img.url) %>% 
+        rename(team = Team,
+               img_team = img.url) %>% 
+        mutate(team = gsub("\\*", "",team)) %>% 
+        mutate(team = gsub("A$", "",team)) %>% 
+        mutate(img_team = sub("24", "80",img_team))
+    
+    all_team_rosters$team <- str_trim(all_team_rosters$team,side = c("both"))
+    
+    all_team_rosters$team[all_team_rosters$team == "JobStairs GIESSEN 46ers"] <- "GIESSEN 46ers"
+    all_team_rosters$team[all_team_rosters$team == "Basketball Löwen Braunschwe."] <- "Basketball Löwen Braunschweig"
+    all_team_rosters$team[all_team_rosters$team == "HAKRO Merlins Crailsheim"] <- "Crailsheim Merlins"
+    all_team_rosters$team[all_team_rosters$team == "SYNTAINICS MBC"] <- "Mitteldeutscher BC"
+    
+    
+    rm$close()
+    # stop the selenium server
+    remDr$server$stop()
+    base::rm(remDr)
+    gc()
+    system("taskkill /im java.exe /f", intern=FALSE, ignore.stdout=FALSE)
+    
+    return(team_image)
 }

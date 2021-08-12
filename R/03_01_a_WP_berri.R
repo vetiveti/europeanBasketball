@@ -80,7 +80,17 @@ ggplot(team_pg, aes(y = win_pct,x = PTS_per_PE - OPP_PTS_per_PA)) +
 #Step 0: Marginal contributions:----
 # PTS/PE -1 
 PTS_per_POS = team_pg$pts/team_pg$PE
+
 mean_PTSperPoss =mean(PTS_per_POS)
+
+# we can see a trend in points per possession
+mean_pts_per_pos_y <- team_pg %>% 
+    mutate(pts_per_pos=pts/PE) %>% 
+    group_by(year) %>% 
+    mutate(mean_pts_pos = mean(pts_per_pos)) %>% 
+    ungroup() %>% 
+    dplyr::select(year,mean_pts_pos) %>% 
+    unique()
 
 # take the derivative to get the marginal impact of points and PE/ opp_points and PA on wins
 team_pg <- team_pg %>% 
@@ -115,6 +125,13 @@ blk_on_opp_FGM <- lm(data = team_pg , opp_fgm ~ blk + opp_fga +
                          factor(team) +
                          factor(year))
 summary(blk_on_opp_FGM)
+
+#side note
+blk_on_opp_ORB <- lm(data = team_pg , opp_orb ~ blk +
+                         factor(team) +
+                         factor(year))
+summary(blk_on_opp_ORB) # very significant influence!!! blocks highly increase second chances of
+# the opponent team!
 
 # with this I get from Berri 2008
 unique(coefficients(blk_on_opp_FGM)["blk"] * - team_pg$marg_val_2FGM) # mein wert nach berris methode
@@ -428,7 +445,7 @@ wp_berri_a <- wins_produced %>%
     select(player,team,year,min_p,PROD_adj_total) %>% 
     rename(wp = PROD_adj_total)
 
-saveRDS(object = wp_berri_a, file = paste0("Data/wp_berri_a.Rds"))
+saveRDS(object = wp_berri_a, file = paste0("Data/estimates/wp_berri_a.Rds"))
 
 #******************************************************************************#
 # Comparison:----
