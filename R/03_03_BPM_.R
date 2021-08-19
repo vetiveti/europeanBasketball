@@ -22,9 +22,9 @@ team_totals <- readRDS("Data/team_data_totals.Rds")
 # Merge data frames:----
 player_stats <-merge(player_totals,team_totals, by = c("team","year"), suffix = c("_p","_t")) %>% 
   filter(min_p > 0)
+length(unique(player_stats$player))
 
 #******************************************************************************#
-
 # per 100 possessions
 # pace is defined as:
 # pace = poss/min * 40
@@ -40,7 +40,7 @@ player <- player_stats %>%
   
 #******************************************************************************#
 # calculate possessions:----
-# Basketball-reference methode:
+# Basketball-reference method:
 player <- player %>% 
   mutate(poss_t = 0.5*((fga_t+0.4*fta_t-1.07*(orb_t/(orb_t + opp_drb))*(fga_t-fgm_t)+tov_t)+
                      (opp_fga+0.4*opp_fta-1.07*(opp_orb/(opp_orb+drb_t))*(opp_fga-opp_fgm)+opp_tov)),
@@ -92,7 +92,7 @@ player <- player %>%
          thresh_pts_PCT = thresh_pts / thresh_pts_t / min_pct)
 
 #******************************************************************************#
-# POSITION PLAYED:----
+# POSITION PLAYED____:----
 # hard code position regression:
 position <- data.frame(intercept = 2.1296,
                        TRB_pct = 8.6676,
@@ -188,7 +188,7 @@ player <- player %>%
   mutate(pos_final = trim_pos_4)
 
 #******************************************************************************#
-# OFFENSIVE ROLE ----
+# OFFENSIVE ROLE____: ----
 
 #******************************************************************************#
 # hard code offensive role:
@@ -278,6 +278,13 @@ player <- player %>%
   mutate(role_final = trim_role_4)
 
 #******************************************************************************#
+# save position and role:
+pos_role <- player %>% 
+  dplyr::select(player,team,year,pos_final,role_final)
+
+saveRDS(object = pos_role, file = paste0("Data/estimates/pos_role_BPM.Rds"))
+
+#******************************************************************************#
 # calculate BPM coefficients ----
 # load base regression:
 bpm_coef <- read.xlsx("data/BPM_coef.xlsx", rowNames =  TRUE)
@@ -308,7 +315,7 @@ BPM <- BPM %>%
          BPM_pf=(5-pos_final)/4*bpm_coef$pf[1]+(pos_final-1)/4*bpm_coef$pf[2]
          ) 
 
-# multiply with actual boxs core values:
+# multiply with actual box score values:
 BPM <- BPM %>% 
   mutate(scoring = pts_100 * BPM_pts_coef + 
            fga_100 * BPM_fga_coef +
@@ -341,7 +348,7 @@ BPM <- BPM %>%
     constant = pos_cons + role_cons)
 
 #******************************************************************************#
-# Calc. raw BPM:----
+# BPM CALCULATION____:----
 BPM <- BPM %>% 
   mutate(raw_BPM = scoring + ballhandling + rebounding + defense + constant,
          contribution = raw_BPM * min_pct)
@@ -352,8 +359,10 @@ BPM <- BPM %>%
   group_by(team,year) %>% 
   mutate(contr_team = sum(contribution)) %>% 
   ungroup() %>% 
-  mutate(avg_Rtg = mean(ORtg_t),
-         adj_ORtg = ORtg_t - avg_Rtg,
+  group_by(year) %>% 
+  mutate(avg_Rtg = mean(ORtg_t)) %>% 
+  ungroup() %>% 
+  mutate(adj_ORtg = ORtg_t - avg_Rtg,
          adj_DRtg = avg_Rtg - DRtg_t,
          adj_netRtg = adj_ORtg + adj_DRtg)
 
@@ -384,7 +393,7 @@ a <- select(BPM, player,team, year, BPM, reg_BPM, VORP)
 
 #******************************************************************************#
 
-# OFFENSIVE BPM ----
+# OFFENSIVE BPM____:----
 
 #******************************************************************************#
 # load coefficients
@@ -442,7 +451,7 @@ OBPM <- OBPM %>%
     constant = pos_cons + role_cons)
 
 #******************************************************************************#
-# calcualte raw OBPM ----
+# calculate raw OBPM ----
 OBPM <- OBPM %>% 
   mutate(raw_OBPM = scoring + ballhandling + rebounding + defense + constant,
          contribution = raw_OBPM * min_pct)
@@ -478,12 +487,21 @@ OBPM <- OBPM %>%
          exp_BPM = -4.75 + 0.175 * reg_min_PG,
          reg_OBPM = (OBPM * min_p + exp_BPM * reg_min) / (min_p + reg_min))
 
-# final scores anschauen
-b <- select(OBPM, player,team,year, OBPM,reg_OBPM, VORP)
+#******************************************************************************#
+# FINAL SCORES____:----
+BPM_for_merge <- select(BPM,min_p,player,team,year,BPM,VORP)
+OBPM_for_merge <- select(OBPM, player, team, year, OBPM, VORP)
+
+BPM_final <- merge(BPM_for_merge, OBPM_for_merge, by = c("player","team","year"),
+                   suffixes = c("","_off.")) %>% 
+  arrange(-BPM)
 
 #******************************************************************************#
+# save final win shares in data frame: ----
+saveRDS(object = BPM_final, file = paste0("Data/estimates/BPM_final.Rds"))
+
 #******************************************************************************#
-# plotting:----
+# PLOTS:----
 ggplot(BPM, aes(x=BPM)) + 
   geom_histogram(aes(y=..density..),      # Histogram with density instead of count on y-axis
                  binwidth=.5,
@@ -523,14 +541,3 @@ ggplot(BPM, aes(x=BPM, y = VORP, colour = year)) +
              color="red", linetype="dashed", size=1)
 
 #******************************************************************************#
-# Final scores:----
-BPM_for_merge <- select(BPM,min_p,player,team,year,BPM,VORP)
-OBPM_for_merge <- select(OBPM, player, team, year, OBPM, VORP)
-
-BPM_final <- merge(BPM_for_merge, OBPM_for_merge, by = c("player","team","year"),
-                   suffixes = c("","_off.")) %>% 
-  arrange(-BPM)
-
-#******************************************************************************#
-# save final win shares in data frame: ----
-saveRDS(object = BPM_final, file = paste0("Data/estimates/BPM_final.Rds"))

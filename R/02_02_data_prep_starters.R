@@ -48,7 +48,7 @@ starters2014 <- roster2014 %>%
 #     mutate(game_q = game_id * quarter)
 # 
 # pbp_game_1 <- filter(pbp_starter,
-#                      game_q == 17251*1)
+#                      game_q == 17276*1)
 # 
 # solve <- calc_starters(pbp_game_1,roster)
 # sum(solve$starter_Q1)
@@ -109,7 +109,7 @@ roster2015 <- calc_starters(pbp,roster)
 #     mutate(game_q = game_id * quarter)
 # 
 # pbp_game_1 <- filter(pbp_starter,
-#                      game_q == 18365*4)
+#                      game_q == 18412*1)
 # 
 # solve <- calc_starters(pbp_game_1,roster)
 # view(solve)
@@ -191,7 +191,7 @@ starters2016$starter_Q4[starters2016$game_nr == 19625 & starters2016$Player == "
 starters2016$starter_Q5[starters2016$game_nr == 19749 & starters2016$Player == "Brian, Qvale"] <- 1
 starters2016$starter_Q5[starters2016$game_nr == 19783 & starters2016$Player == "Shawn, Huff"] <- 1
 starters2016$starter_Q4[starters2016$game_nr == 19798 & starters2016$Player == "Ojars, Silins"] <- 1
-starters2016$starter_Q5[starters2016$game_nr == 19817 & starters2016$Player == "Stefan, Ilzhöfer"] <- 1
+starters2016$starter_Q5[starters2016$game_nr == 19817 & starters2016$Player == "Albert Jay, English"] <- 1
 
 anzahl <- unique(starters2016$game_nr) %>% as_tibble() %>% nrow()
 print(anzahl)
@@ -254,7 +254,7 @@ roster <- roster_data$rosters_2018
 roster2018 <- calc_starters(pbp,roster) 
 #
 # pbp_game_1 <- filter(pbp_starter,
-#                      game_q == 22072 * 4)
+#                      game_q == 22132 * 4)
 # 
 # # source functions to use
 # source('functions/BBL_functions.R')

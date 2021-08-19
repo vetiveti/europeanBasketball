@@ -175,6 +175,7 @@ names(marg_values) <- marg_value_names
 marg_values_rounded <- round(marg_values,3)
 print(marg_values_rounded)
 
+saveRDS(object = marg_values, file = paste0("Data/estimates/marg_values_wp.Rds"))
 #******************************************************************************#
 # Step 1 - Calculating WINS PRODUCED per team ----
 
@@ -425,6 +426,8 @@ pos_avg_5 <- pos_avg_4 %>%
     dplyr::distinct(., Pos., .keep_all = T) %>% 
     ungroup
 print(pos_avg_5)
+
+saveRDS(object = pos_avg_5, file = "Data/estimates/position_average_wp.Rds")
 
 pos_avg_final <- merge(wins_produced, pos_avg_5,
                              by = c("Pos.","year"))%>% 

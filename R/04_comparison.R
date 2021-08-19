@@ -150,6 +150,7 @@ ggplot(data = team_totals, aes(x = point_differential_pg, y = win_perc)) +
     geom_point() +
     geom_smooth(method = "lm",
                 formula = y ~ x)
+
 #******************************************************************************#
 # Explaining wins with regression R^2:----
 team_totals <- readRDS("Data/team_data_totals.Rds")
@@ -262,3 +263,41 @@ fmsb::radarchart(data,axistype=1 ,
                  vlcex=0.8 
 )
 
+a <- filter(ranking,
+            year == 2014,
+            team == "ALBA BERLIN")
+
+VORP <- a %>%  
+    mutate(wins_add = VORP * coefficients(reg_point_dif)["point_differential_pg"] * 34) %>% 
+    dplyr::select(wins_add)
+VORP <- a %>%  
+    dplyr::select(VORP)
+sum(VORP)
+
+WS <- a %>% 
+    mutate(pd = win_shares / coefficients(reg_point_dif)["point_differential_pg"] / 34) %>% 
+    dplyr::select(pd)
+sum(WS)
+
+# point differential für ALBA BERLIN
+alba <- team_totals %>% 
+    filter(year == 2014,
+            team == "ALBA BERLIN") %>%
+    mutate(pd = pts - opp_pts,
+           pd_g = pd / 34) %>% 
+    dplyr::select(pd_g)
+sum(alba) * (1 + coefficients(reg_point_dif)["point_differential_pg"]) + 17
+
+# okay what is going on?
+team_totals <- team_totals %>% 
+    mutate(point_differential_pg = (pts - opp_pts) / G,
+           win_perc = W / G)
+
+reg_point_dif <- lm(data = team_totals,
+                    point_differential_pg~ win_perc )
+summary(reg_point_dif)
+
+ggplot(data = team_totals, aes(x = win_perc, y = point_differential_pg)) +
+    geom_point() +
+    geom_smooth(method = "lm",
+                formula = y ~ x)

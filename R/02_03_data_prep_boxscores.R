@@ -59,6 +59,8 @@ for (i in seq_along(un)) {
     bx_teams <- bind_rows(bx_teams,current_boxscore,current_boxscore_against)
 }
 
+#bx_teams <-readRDS("Data/bx_teams_pg.Rds")
+
 bx_teams <- bx_teams %>% 
     mutate(W = if_else(pts>opp_pts,1,0),
            L = if_else(pts<opp_pts,1,0),
@@ -79,6 +81,7 @@ unique(bx_teams$team)
 
 # bx_teams:----
 saveRDS(object = bx_teams, file = paste0("Data/bx_teams_pg",".Rds"))
+
 
 team_totals <- bx_teams %>%
     drop_na(team)
@@ -139,6 +142,7 @@ for(i in unique(pbp$game_id)) {
     player_tot_cur$year <- pbp_cur$year[10]
     player_tot_perTeam_pg <- bind_rows(player_tot_perTeam_pg, player_tot_cur)
 }
+
 player_tot_perTeam <- player_tot_perTeam_pg %>% 
     rename(player = stats)
 player_tot_perTeam$player[player_tot_perTeam$player == "Jake, O#Brien"] <- "Jake, O'Brien"
@@ -155,6 +159,11 @@ player_tot_perTeam$player[player_tot_perTeam$player == "Darvin, Davis"] <- "Darw
 player_tot_perTeam$player[player_tot_perTeam$player == "E. J., Singler"] <- "E.J., Singler"
 player_tot_perTeam$player[player_tot_perTeam$player == "Jonas, Wohlfarth-B."] <- "Jonas, Wohlfarth-Bottermann"
 player_tot_perTeam$player[player_tot_perTeam$player == "Ra#Shad, James"] <- "Ra'Shad, James"
+player_tot_perTeam$player[player_tot_perTeam$player == "Konstantin, Klein"] <- "Konstantin, Konga"
+player_tot_perTeam$player[player_tot_perTeam$player == "Leon Iduma, Okpara"] <- "Leon, Okpara"
+player_tot_perTeam$player[player_tot_perTeam$player == "Quirin, Emanga Noupoue"] <- "Quirin, Emanga"
+player_tot_perTeam$player[player_tot_perTeam$player == "Zan Mark, Sisko"] <- "Zan, Sisko"
+
 player_tot_perTeam$team[player_tot_perTeam$team == "Oettinger Rockets"] <- "Rockets"
 player_tot_perTeam$team[player_tot_perTeam$team == "s.Oliver Baskets"] <- "s.Oliver Würzburg"
 player_tot_perTeam$team[player_tot_perTeam$team == "s.Oliver Würzurg"] <- "s.Oliver Würzburg"
@@ -229,6 +238,7 @@ play_time$player[play_time$player == "Konstantin, Klein"] <- "Konstantin, Konga"
 play_time$player[play_time$player == "Leon Iduma, Okpara"] <- "Leon, Okpara"
 play_time$player[play_time$player == "Quirin, Emanga Noupoue"] <- "Quirin, Emanga"
 play_time$player[play_time$player == "Zan Mark, Sisko"] <- "Zan, Sisko"
+
 play_time$Club[play_time$Club == "Oettinger Rockets"] <- "Rockets"
 play_time$Club[play_time$Club == "s.Oliver Baskets"] <- "s.Oliver Würzburg"
 play_time$Club[play_time$Club == "s.Oliver Würzurg"] <- "s.Oliver Würzburg"
@@ -247,10 +257,17 @@ games_played  <- play_time %>%              # Count rows by group
 play_time1 <- play_time %>% 
     mutate_at("sec_total", ~replace(., is.na(.), 0))
 
+play_time1$sec_total[play_time1$player == "Lucas, Gertz" & play_time1$game_nr == 17276] <- 135
+play_time1$sec_total[play_time1$player == "Jordon, Crawford" & play_time1$game_nr == 22132] <- 2589
+play_time1$sec_total[play_time1$player == "David, Godbold" & play_time1$game_nr == 18412] <- 715
+
+
 df <- play_time1 %>% group_by(player,Club,year) %>%
     summarize(Sum_sec = sum(sec_total), .groups = "drop") %>% 
     mutate(min_sec_played = lubridate::seconds_to_period(Sum_sec)) %>% 
     mutate(min_sec = round(Sum_sec / 60, digits = 2))
+
+
 
 # save player info:
 saveRDS(object = df, file = paste0("Data/playing_time_player",".Rds"))
@@ -371,7 +388,7 @@ player_data_info<- merge(player_data,player_info,
 #******************************************************************************#
 # calc. player min_p, fg:
 player_data_info <- player_data_info %>% 
-    mutate(min_p = round(Sum_sec /60),
+    mutate(min_p = round(Sum_sec /60,1),
            fga = p2a + p3a,
            fgm = p2m + p3m,) %>% 
     relocate(min_p, .after = G) %>% 
