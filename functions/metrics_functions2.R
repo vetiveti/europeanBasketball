@@ -498,12 +498,12 @@ BPM <- function(player,team,pos_role){
     
     #******************************************************************************#
     # Step 4 - regression to the mean for players with small minutes:----
-    # BPM <- BPM %>% 
-    #     mutate(reg_min_PG = min_p,
-    #            reg_min = pmax((12 - min_p)/3,0),
-    #            exp_BPM = -4.75 + 0.175 * reg_min_PG,
-    #            reg_BPM = (BPM * min_p + exp_BPM * reg_min) / (min_p + reg_min),
-    #            reg_VORP = (reg_BPM + 2) * min_pct)
+    BPM <- BPM %>%
+        mutate(reg_min_PG = min_p,
+               reg_min = pmax((100 - min_p)/3,0),
+               exp_BPM = -4.75 + 0.175 * reg_min_PG,
+               reg_BPM = (BPM * min_p + exp_BPM * reg_min) / (min_p + reg_min),
+               reg_VORP = (reg_BPM + 2) * min_pct)
     
     return(BPM)
 }
