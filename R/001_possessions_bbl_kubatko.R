@@ -46,6 +46,7 @@ pbp <- pbp %>%
 #******************************************************************************#
 # possession calculation:----
 pbp <- pbp %>% 
+    filter(game_id == 17099) %>% 
     mutate_all(na_if,"") %>% 
     mutate(einer = 0)
 
@@ -69,7 +70,7 @@ pbp <- pbp %>%
             aktion == "FOUL" & zusatzinfo_1 == "O" ~ 1,
             TRUE ~ 0)
     )
-
+a <- filter(pbp, nummer_aktion >= 6, nummer_aktion <=14)
 
 pbp$pos_end[pbp$aktion == "END"] <- 1
 pbp$zusatzinfo_2 <- replace_na(pbp$zusatzinfo_2,"unknown")
@@ -152,6 +153,7 @@ library(tidyverse)
 #******************************************************************************#
 # load additional data:----
 pos_pg <- readRDS("Data/pos_pg.Rds")
+
 bx_teams <- readRDS("Data/bx_teams_pg.Rds")
 
 bx_teams <- bx_teams %>%
@@ -178,11 +180,13 @@ merged_df <- merge(pos_pg,bx_teams,
 
 #******************************************************************************#
 # Empircal modelling:----
-model1 <- lm(poss_team ~ fga + mfg + fta + mft + orb + opp_drb + tov,data = merged_df)
+model1 <- lm(poss_team ~ fga + mfg + fta + mft + orb + opp_drb + tov + factor(year)
+             ,data = merged_df)
 beta1 <- t(coef(model1)) %>% as_tibble()
 summary(model1)
 
-model2 <- lm(poss_team ~ fga + fta + orb + tov,data = merged_df)
+model2 <- lm(poss_team ~ fga + fta + orb + tov + factor(year)
+             ,data = merged_df)
 beta2 <- t(coef(model2)) %>% as_tibble()
 summary(model2)
 
@@ -196,8 +200,10 @@ models <- merged_df %>%
            poss_est3 = fga + 0.44 * fta - orb + tov,
            poss_est4 = fga + 0.5 * fta - orb + tov,
            orbmissed = orb * (fga - fgm) / (orb + opp_drb),
-           poss_est5 = fga + 0.4 * fta - 1.07 * orbmissed + tov) %>% 
-    select(game_id,team_1,team_2,poss_actual,poss_est1,poss_est2,poss_est3,poss_est4,poss_est5)
+           poss_est5 = fga + 0.4 * fta - 1.07 * orbmissed + tov,
+           poss_est6 = 0.5*((fga+0.4*fta-1.07*(orb/(orb + opp_drb))*(fga-fgm)+tov)+
+                                         (opp_fga+0.4*opp_fta-1.07*(opp_orb/(opp_orb+drb))*(opp_fga-opp_fgm)+opp_tov))) %>% 
+    dplyr::select(game_id,year,team_1,team_2,poss_actual,poss_est1,poss_est2,poss_est3,poss_est4,poss_est5,poss_est6)
 
 poss_correlation_team <- models %>% 
     mutate(cor_actual = cor(poss_actual,poss_actual),
@@ -206,9 +212,15 @@ poss_correlation_team <- models %>%
            cor_model_3 = cor(poss_est3,poss_actual),
            cor_model_4 = cor(poss_est4,poss_actual),
            cor_model_5 = cor(poss_est5,poss_actual),
+           cor_model_6 = cor(poss_est6,poss_actual),
            ) %>% 
-    select(cor_actual:cor_model_5) %>% 
+    select(cor_actual:cor_model_6) %>% 
     distinct(cor_model_1, .keep_all = TRUE)
+
+mean_poss_team <- models %>% 
+    distinct(game_id, .keep_all = TRUE) %>% 
+    summarise_at(vars(poss_actual:poss_est6), mean)
+print(mean_poss_team)
 
 #******************************************************************************#
 # accuracy total (averaged):----
@@ -220,15 +232,18 @@ models_averaged <- merged_df %>%
            poss_est3 = fga + 0.44 * fta - orb + tov,
            poss_est4 = fga + 0.5 * fta - orb + tov,
            orbmissed = orb * (fga - fgm) / (orb + opp_drb),
-           poss_est5 = fga + 0.4 * fta - 1.07 * orbmissed + tov) %>%
+           poss_est5 = fga + 0.4 * fta - 1.07 * orbmissed + tov,
+           poss_est6 = 0.5*((fga+0.4*fta-1.07*(orb/(orb + opp_drb))*(fga-fgm)+tov)+
+                                (opp_fga+0.4*opp_fta-1.07*(opp_orb/(opp_orb+drb))*(opp_fga-opp_fgm)+opp_tov))) %>%
     group_by(game_id) %>% 
     mutate(poss_est1_avg = sum(poss_est1),
            poss_est2_avg = sum(poss_est2),
            poss_est3_avg = sum(poss_est3),
            poss_est4_avg = sum(poss_est4),
-           poss_est5_avg = sum(poss_est5)) %>% 
+           poss_est5_avg = sum(poss_est5),
+           poss_est6_avg = sum(poss_est6),) %>% 
     ungroup() %>% 
-    select(game_id,team_1,team_2,poss_actual,poss_est1_avg,poss_est2_avg,poss_est3_avg,poss_est4_avg,poss_est5_avg) %>% 
+    select(game_id,team_1,team_2,poss_actual,poss_est1_avg:poss_est6_avg) %>% 
     distinct(game_id, .keep_all = TRUE)
     
 poss_correlation_total <- models_averaged %>% 
@@ -238,10 +253,41 @@ poss_correlation_total <- models_averaged %>%
            cor_model_3 = cor(poss_est3_avg,poss_actual),
            cor_model_4 = cor(poss_est4_avg,poss_actual),
            cor_model_5 = cor(poss_est5_avg,poss_actual),
+           cor_model_6 = cor(poss_est6_avg,poss_actual),
     ) %>% 
-    select(cor_actual:cor_model_5) %>% 
+    select(cor_actual:cor_model_6) %>% 
     distinct(cor_model_1, .keep_all = TRUE)
 
 #******************************************************************************#
 poss_correlation_team
 poss_correlation_total
+
+#******************************************************************************#
+# plots
+pos_y <- merged_df %>% 
+    distinct(tot_poss,year,game_id) %>% 
+    group_by(year) %>% 
+    mutate(poss_avg = mean(tot_poss), .keep = "unused") %>% 
+    distinct(poss_avg, .keep_all = TRUE) %>% 
+    dplyr::select(-game_id)
+
+print(xtable(pos_y, type = "latex",tabular.environment="longtable"), file = "export/poss_table.tex")
+
+ggplot(data = pos_y, aes(x = year, y = poss_avg)) +
+    geom_point() +
+
+pos_team <- merged_df %>% 
+    group_by(team_1,year) %>% 
+    summarise_at(vars(tot_poss), mean)
+
+ggplot(data = pos_team, aes(x = year, y = tot_poss)) +
+    geom_point()
+
+# final plot
+ggplot(data = pos_y, aes(x = year, y = poss_avg)) +
+    geom_smooth(method = "loess",
+                formula = y ~ x) +
+    geom_point(data = pos_team, aes(x = year, y = tot_poss))
+
+ggsave("export/possessions.png", w = 10, h = 10, dpi = 300, type = 'cairo')
+

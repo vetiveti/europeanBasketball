@@ -415,7 +415,7 @@ BPM <- function(player,team,pos_role){
                     by = c("player","team","year"), all = FALSE)
     
     BPM <- dplyr::select(player,
-                         player,team,year,min_p,pts_100:min_pct,pos_final,
+                         player,team,year,min_p,min_t,pts_100:min_pct,pos_final,
                          role_final,ORtg_t,DRtg_t,pace_t,G_t,G_tot)
     
     # coefficient depending on position and role
@@ -493,7 +493,7 @@ BPM <- function(player,team,pos_role){
     BPM <- BPM %>% 
         mutate(team_adj = (adj_team_Rtg - contr_team) / 5) %>% 
         mutate(BPM = raw_BPM + team_adj,
-               VORP = (BPM + 2) * min_pct * G_t / G_tot)
+               VORP = (BPM + 2) * min_pct) #*G_t / G_tot)
     
     
     #******************************************************************************#
@@ -506,4 +506,12 @@ BPM <- function(player,team,pos_role){
                reg_VORP = (reg_BPM + 2) * min_pct)
     
     return(BPM)
+}
+
+BBL_eff <- function(player){
+    eff <- player %>% 
+        mutate(bbl_eff = pts + trb + stl +ast + blk - tov - (fga - fgm) - (fta - ftm)) %>% 
+        dplyr::select(player,team,year,min_p,bbl_eff)
+    
+    return(eff)
 }

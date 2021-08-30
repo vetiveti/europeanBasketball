@@ -467,3 +467,7 @@ wins <- wins %>%
            abs_diff = abs(diff)) %>% 
     group_by(year) %>% 
     mutate(avg_dif = mean(abs_diff))
+
+reg1 <- lm(data = wins,
+           W ~ win_est)
+summary(reg1)

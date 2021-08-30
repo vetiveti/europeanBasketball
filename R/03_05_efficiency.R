@@ -15,7 +15,7 @@ player_totals <- readRDS("Data/player_data_totals.Rds")
 player_pg <- readRDS("Data/player_data_pg.Rds")
 
 #******************************************************************************#
-# NBA Efficiency
+# NBA Efficiency & BBL EFFICIENCY
 # NBA_eff = PTS + REB + STL + AST + BLK - TOV - MFG
 efficiency <- player_totals %>% 
     mutate(nba_eff = pts + trb + stl +ast + blk - tov - (fga - fgm),

@@ -7,6 +7,9 @@ rm(list=ls())
 # source functions to use
 source('functions/BBL_functions.R')
 
+# set working directory
+setwd("~/Uni T�bingen/0. Masterarbeit/7. R/europeanBasketball")
+
 library(tidyverse, warn.conflicts = FALSE)
 library(zoo)
 
@@ -19,7 +22,7 @@ library(zoo)
 
 #******************************************************************************#
 # Load cleaned pbp files: ----
-pbp_files = paste0("Data/clean_pbp/pbp_", 2014:2020, ".Rds")
+pbp_files = paste0("Data/clean_pbp/pbp_", 2010:2020, ".Rds")
 name <- gsub("\\.Rds$", "", pbp_files) %>% 
     gsub("Data/", "", .)
 pbp_data <- lapply(pbp_files, readRDS)
@@ -35,6 +38,220 @@ names(roster_data) <- gsub("\\.Rds$", "", name)
 
 # YEAR BY YEAR:  ----
 #******************************************************************************#
+# calculate starters 2010: ----
+pbp <- pbp_data$`clean_pbp/pbp_2010`
+roster <- roster_data$rosters_2010
+roster2010 <- calc_starters(pbp,roster) 
+
+starters2010 <- roster2010 %>% 
+    mutate(starter_Q5 = replace_na(starter_Q5,0),
+           starter_Q6 = replace_na(starter_Q6,0))
+
+#
+pbp_starter <- pbp %>%
+    mutate(game_q = game_id * quarter)
+
+pbp_game_1 <- filter(pbp_starter,
+                     game_q == 8940*2)
+
+solve <- calc_starters(pbp_game_1,roster)
+view(solve)
+debugonce(calc_starters)
+solve2 <- calc_starters(pbp_game_1,roster)
+#
+starters2010$starter_Q1[starters2010$game_nr == 8704 & starters2010$Player == "Michael, Crowell"] <- 0
+starters2010$starter_Q2[starters2010$game_nr == 8735 & starters2010$Player == "Rickey, Paulding"] <- 1
+starters2010$starter_Q1[starters2010$game_nr == 8721 & starters2010$Player == "Christoph, Tetzner"] <- 0
+starters2010$starter_Q5[starters2010$game_nr == 8779 & starters2010$Player == "Rastko, Dramicanin"] <- 1
+starters2010$starter_Q1[starters2010$game_nr == 8669 & starters2010$Player == "Jamaal, Tatum"] <- 0
+starters2010$starter_Q1[starters2010$game_nr == 8825 & starters2010$Player == "Coleman, Collins"] <- 0
+starters2010$starter_Q5[starters2010$game_nr == 8855 & starters2010$Player == "Per, Günther"] <- 1
+starters2010$starter_Q1[starters2010$game_nr == 8909 & starters2010$Player == "Quantez, Robertson"] <- 1
+starters2010$starter_Q5[starters2010$game_nr == 8937 & starters2010$Player == "Marius, Nolte"] <- 1
+starters2010$starter_Q4[starters2010$game_nr == 8938 & starters2010$Player == "John, Goldsberry"] <- 0
+starters2010$starter_Q2[starters2010$game_nr == 8940 & starters2010$Player == "Branislav, Ratkovica"] <- 1
+
+anzahl <- unique(starters2010$game_nr) %>% as_tibble() %>% nrow()
+print(anzahl)
+sum(starters2010$starter_Q1) / 10
+sum(starters2010$starter_Q2) / 10
+sum(starters2010$starter_Q3) / 10
+sum(starters2010$starter_Q4) / 10
+sum(starters2010$starter_Q5) / 10
+sum(starters2010$starter_Q6) / 10
+
+#******************************************************************************#
+# Save starters 2010:
+saveRDS(object = starters2010, file = paste0("Data/starters/starters_2010",".Rds"))
+
+#******************************************************************************#
+# calculate starters 2011: ----
+pbp <- pbp_data$`clean_pbp/pbp_2011`
+roster <- roster_data$rosters_2011
+roster2011 <- calc_starters(pbp,roster) 
+
+starters2011 <- roster2011 %>% 
+    mutate(starter_Q5 = replace_na(starter_Q5,0),
+           starter_Q6 = replace_na(starter_Q6,0))
+
+#
+# pbp_starter <- pbp %>%
+#     mutate(game_q = game_id * quarter)
+# 
+# pbp_game_1 <- filter(pbp_starter,
+#                      game_q == 11160*6)
+# 
+# solve <- calc_starters(pbp_game_1,roster)
+# view(solve)
+# debugonce(calc_starters)
+# solve2 <- calc_starters(pbp_game_1,roster)
+#
+starters2011$starter_Q2[starters2011$game_nr == 10906 & starters2011$Player == "Louis, Campbell"] <- 0
+starters2011$starter_Q2[starters2011$game_nr == 10921 & starters2011$Player == "Louis, Dale"] <- 1
+starters2011$starter_Q3[starters2011$game_nr == 10936 & starters2011$Player == "Velimir, Radinovic"] <- 0
+starters2011$starter_Q3[starters2011$game_nr == 10953 & starters2011$Player == "Zvonko, Buljan"] <- 0
+starters2011$starter_Q3[starters2011$game_nr == 10953 & starters2011$Player == "Andrej, Mangold"] <- 0
+starters2011$starter_Q5[starters2011$game_nr == 10956 & starters2011$Player == "Joshua Adam, Young"] <- 1
+starters2011$starter_Q5[starters2011$game_nr == 10958 & starters2011$Player == "Nate, Linhart"] <- 1
+starters2011$starter_Q3[starters2011$game_nr == 10981 & starters2011$Player == "Sead, Sehovic"] <- 1
+starters2011$starter_Q4[starters2011$game_nr == 10981 & starters2011$Player == "Kenny, Hasbrouck"] <- 1
+starters2011$starter_Q4[starters2011$game_nr == 11001 & starters2011$Player == "Dominik, Spohr"] <- 1
+starters2011$starter_Q1[starters2011$game_nr == 11020 & starters2011$Player == "LaMarr, Greer"] <- 1
+starters2011$starter_Q3[starters2011$game_nr == 11046 & starters2011$Player == "Demond, Greene"] <- 1
+starters2011$starter_Q5[starters2011$game_nr == 11102 & starters2011$Player == "Adam, Chubb"] <- 1
+starters2011$starter_Q2[starters2011$game_nr == 11110 & starters2011$Player == "Andreas, Wenzl"] <- 0
+starters2011$starter_Q3[starters2011$game_nr == 11115 & starters2011$Player == "Simonas, Serapinas"] <- 1
+starters2011$starter_Q1[starters2011$game_nr == 11124 & starters2011$Player == "Steven Michael, Esterkamp"] <- 1
+starters2011$starter_Q3[starters2011$game_nr == 11078 & starters2011$Player == "Jordan, Hasquet"] <- 1
+starters2011$starter_Q5[starters2011$game_nr == 11135 & starters2011$Player == "Anthony, Smith"] <- 1
+starters2011$starter_Q5[starters2011$game_nr == 11160 & starters2011$Player == "Brandon, Thomas"] <- 1
+starters2011$starter_Q6[starters2011$game_nr == 11160 & starters2011$Player == "Brandon, Thomas"] <- 1
+starters2011$starter_Q6[starters2011$game_nr == 11160 & starters2011$Player == "Guido, Grünheid"] <- 1
+starters2011$starter_Q5[starters2011$game_nr == 11167 & starters2011$Player == "Robin, Benzing"] <- 1
+starters2011$starter_Q1[starters2011$game_nr == 11168 & starters2011$Player == "Michael, Thompson"] <- 1
+starters2011$starter_Q5[starters2011$game_nr == 11178 & starters2011$Player == "Devin, Gibson"] <- 1
+starters2011$starter_Q1[starters2011$game_nr == 11183 & starters2011$Player == "Jermareo, Davidson"] <- 0
+starters2011$starter_Q1[starters2011$game_nr == 11183 & starters2011$Player == "Quantez, Robertson"] <- 1
+starters2011$starter_Q1[starters2011$game_nr == 11183 & starters2011$Player == "Danilo, Barthel"] <- 0
+starters2011$starter_Q1[starters2011$game_nr == 11183 & starters2011$Player == "Fabian, Franke"] <- 0
+
+
+anzahl <- unique(starters2011$game_nr) %>% as_tibble() %>% nrow()
+print(anzahl)
+sum(starters2011$starter_Q1) / 10
+sum(starters2011$starter_Q2) / 10
+sum(starters2011$starter_Q3) / 10
+sum(starters2011$starter_Q4) / 10
+sum(starters2011$starter_Q5) / 10
+sum(starters2011$starter_Q6) / 10
+
+#******************************************************************************#
+# Save starters 2011:
+saveRDS(object = starters2011, file = paste0("Data/starters/starters_2011",".Rds"))
+
+#******************************************************************************#
+# calculate starters 2012: ----
+pbp <- pbp_data$`clean_pbp/pbp_2012`
+roster <- roster_data$rosters_2012
+roster2012 <- calc_starters(pbp,roster) 
+
+starters2012 <- roster2012 %>% 
+    mutate(starter_Q5 = replace_na(starter_Q5,0))
+
+#
+# pbp_starter <- pbp %>%
+#     mutate(game_q = game_id * quarter)
+# 
+# pbp_game_1 <- filter(pbp_starter,
+#                      game_q == 13556*6)
+# 
+# solve <- calc_starters(pbp_game_1,roster)
+# view(solve)
+# debugonce(calc_starters)
+# solve2 <- calc_starters(pbp_game_1,roster)
+#
+starters2012$starter_Q4[starters2012$game_nr == 13261 & starters2012$Player == "Barry, Stewart"] <- 1
+starters2012$starter_Q4[starters2012$game_nr == 13291 & starters2012$Player == "Stefan, Schmidt"] <- 0
+starters2012$starter_Q5[starters2012$game_nr == 13324 & starters2012$Player == "Kyle, Weems"] <- 1
+starters2012$starter_Q5[starters2012$game_nr == 13360 & starters2012$Player == "Phillipp, Heyden"] <- 1
+starters2012$starter_Q5[starters2012$game_nr == 13361 & starters2012$Player == "Alex, King"] <- 1
+starters2012$starter_Q3[starters2012$game_nr == 13362 & starters2012$Player == "Tom, Spöler"] <- 0
+starters2012$starter_Q4[starters2012$game_nr == 13373 & starters2012$Player == "Sergerio, Gipson"] <- 0
+starters2012$starter_Q4[starters2012$game_nr == 13422 & starters2012$Player == "Jonas, Wohlfarth-Bottermann"] <- 0
+starters2012$starter_Q1[starters2012$game_nr == 13455 & starters2012$Player == "Mahir, Agva"] <- 0
+starters2012$starter_Q2[starters2012$game_nr == 13409 & starters2012$Player == "Marius, Nolte"] <- 0
+starters2012$starter_Q1[starters2012$game_nr == 13487 & starters2012$Player == "Quantez, Robertson"] <- 1
+starters2012$starter_Q1[starters2012$game_nr == 13506 & starters2012$Player == "Mahir, Agva"] <- 0
+starters2012$starter_Q1[starters2012$game_nr == 13532 & starters2012$Player == "Andrej, Mangold"] <- 1
+starters2012$starter_Q5[starters2012$game_nr == 13556 & starters2012$Player == "Yotam, Halperin"] <- 1
+
+
+anzahl <- unique(starters2012$game_nr) %>% as_tibble() %>% nrow()
+print(anzahl)
+sum(starters2012$starter_Q1) / 10
+sum(starters2012$starter_Q2) / 10
+sum(starters2012$starter_Q3) / 10
+sum(starters2012$starter_Q4) / 10
+sum(starters2012$starter_Q5) / 10
+
+#******************************************************************************#
+# Save starters 2012:
+saveRDS(object = starters2012, file = paste0("Data/starters/starters_2012",".Rds"))
+
+#******************************************************************************#
+# calculate starters 2013: ----
+pbp <- pbp_data$`clean_pbp/pbp_2013`
+roster <- roster_data$rosters_2013
+roster2013 <- calc_starters(pbp,roster) 
+
+starters2013 <- roster2013 %>% 
+    mutate(starter_Q5 = replace_na(starter_Q5,0),
+           starter_Q6 = replace_na(starter_Q6,0),
+           starter_Q7 = replace_na(starter_Q7,0))
+
+#
+pbp_starter <- pbp %>%
+    mutate(game_q = game_id * quarter)
+
+pbp_game_1 <- filter(pbp_starter,
+                     game_q == 15537*4)
+
+solve <- calc_starters(pbp_game_1,roster)
+sum(solve$starter_Q1)
+view(solve)
+debugonce(calc_starters)
+solve2 <- calc_starters(pbp_game_1,roster)
+#
+starters2013$starter_Q2[starters2013$game_nr == 15276 & starters2013$Player == "Nils, Mittmann"] <- 1
+starters2013$starter_Q5[starters2013$game_nr == 15344 & starters2013$Player == "Djordje, Pantelic"] <- 1
+starters2013$starter_Q3[starters2013$game_nr == 15338 & starters2013$Player == "Boris, Savovic"] <- 1
+starters2013$starter_Q4[starters2013$game_nr == 15357 & starters2013$Player == "Keaton, Nankivil"] <- 1
+starters2013$starter_Q5[starters2013$game_nr == 15385 & starters2013$Player == "Andrea, Crosariol"] <- 1
+starters2013$starter_Q4[starters2013$game_nr == 15400 & starters2013$Player == "Dominique, Johnson"] <- 1
+starters2013$starter_Q5[starters2013$game_nr == 15433 & starters2013$Player == "John, Bryant"] <- 1
+starters2013$starter_Q5[starters2013$game_nr == 15433 & starters2013$Player == "Deon, Thompson"] <- 1
+starters2013$starter_Q3[starters2013$game_nr == 15443 & starters2013$Player == "Nils, Mittmann"] <- 0
+starters2013$starter_Q1[starters2013$game_nr == 15489 & starters2013$Player == "Tyree, Chambers"] <- 0
+starters2013$starter_Q6[starters2013$game_nr == 15515 & starters2013$Player == "Benas, Veikalas"] <- 1
+starters2013$starter_Q3[starters2013$game_nr == 15576 & starters2013$Player == "Max, Merz"] <- 1
+starters2013$starter_Q4[starters2013$game_nr == 15526 & starters2013$Player == "Jamar, Smith"] <- 0
+starters2013$starter_Q4[starters2013$game_nr == 15537 & starters2013$Player == "Aaron, Doornekamp"] <- 1
+
+anzahl <- unique(starters2013$game_nr) %>% as_tibble() %>% nrow()
+print(anzahl)
+sum(starters2013$starter_Q1) / 10
+sum(starters2013$starter_Q2) / 10
+sum(starters2013$starter_Q3) / 10
+sum(starters2013$starter_Q4) / 10
+sum(starters2013$starter_Q5) / 10
+sum(starters2013$starter_Q6) / 10
+sum(starters2013$starter_Q7) / 10
+
+#******************************************************************************#
+# Save starters 2013:
+saveRDS(object = starters2013, file = paste0("Data/starters/starters_2013",".Rds"))
+
+#******************************************************************************#
 # calculate starters 2014: ----
 pbp <- pbp_data$`clean_pbp/pbp_2014`
 roster <- roster_data$rosters_2014
@@ -43,6 +260,13 @@ roster2014 <- calc_starters(pbp,roster)
 starters2014 <- roster2014 %>% 
     mutate(starter_Q5 = replace_na(starter_Q5,0),
            starter_Q6 = replace_na(starter_Q6,0))
+
+pbp_table <- pbp %>% 
+    filter(game_id == 17099, quarter == 2, nummer_aktion >= 2, nummer_aktion <=9) %>% 
+    dplyr::select(spielzeit_sec,aktion,zusatzinfo_1,zusatzinfo_3,
+                  resultat,spielstand_A,spielstand_B,Player_1,Club_1,Player_2,Club_2)
+
+print(xtable(pbp_table, type = "latex",tabular.environment="longtable"), file = "export/pbp_table.tex",)
 #
 # pbp_starter <- pbp %>%
 #     mutate(game_q = game_id * quarter)

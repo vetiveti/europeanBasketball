@@ -37,6 +37,156 @@ names(pbp_data) <- gsub("\\.Rds$", "", name)
 
 # YEAR BY YEAR:  ----
 #******************************************************************************#
+# Clean pbp data 2010: ----
+# prepare game ids
+id <- game_id_data$identifiers_2010
+
+# prepare pbp data
+pbp <- pbp_data$pbp2010 %>% 
+    arrange(desc(spielzeit_sec )) %>% 
+    arrange(game_nr)
+
+# prepare roster data
+roster <- roster_data$rosters_2010 %>% 
+    type_convert() %>%
+    drop_na(.,Club)
+unique(roster$Club)
+
+id_merge <- bind_cols(id, unique(pbp$game_nr)) %>% 
+    rename(nr = `...3`)
+
+pbp <- merge(pbp,id_merge,
+             by.x = "game_nr",
+             by.y = "nr") %>% 
+    select(-game_nr)
+
+# clean for games which have no files
+pbp <- pbp %>%
+    mutate_at("value", ~replace(., is.na(.), 0)) %>% 
+    filter(value != "Error finding file")
+
+pbp <- filter(pbp,
+              (game_id != 8684 | quarter != 5),
+              (game_id != 8792 | quarter != 5),
+              )
+
+#******************************************************************************#
+# Save cleaned pbp files 2010:
+saveRDS(object = pbp, file = paste0("Data/clean_pbp/pbp_2010",".Rds"))
+
+#******************************************************************************#
+# Clean pbp data 2011: ----
+# prepare game ids
+id <- game_id_data$identifiers_2011
+
+# prepare pbp data
+pbp <- pbp_data$pbp2011 %>% 
+    arrange(desc(spielzeit_sec )) %>% 
+    arrange(game_nr)
+
+# prepare roster data
+roster <- roster_data$rosters_2011 %>% 
+    type_convert() %>%
+    drop_na(.,Club)
+unique(roster$Club)
+
+id_merge <- bind_cols(id, unique(pbp$game_nr)) %>% 
+    rename(nr = `...3`)
+
+pbp <- merge(pbp,id_merge,
+             by.x = "game_nr",
+             by.y = "nr") %>% 
+    select(-game_nr)
+
+# clean for games which have no files
+pbp <- pbp %>%
+    mutate_at("value", ~replace(., is.na(.), 0)) %>% 
+    filter(value != "Error finding file")
+
+pbp <- filter(pbp,
+              (game_id != 11051 | quarter != 5),
+              (game_id != 11130 | quarter != 5),
+              (game_id != 11155 | quarter != 5),
+              (game_id != 11158 | quarter != 5),
+              (game_id != 11169 | quarter != 5))
+
+#******************************************************************************#
+# Save cleaned pbp files 2011:
+saveRDS(object = pbp, file = paste0("Data/clean_pbp/pbp_2011",".Rds"))
+
+#******************************************************************************#
+# Clean pbp data 2012: ----
+# prepare game ids
+id <- game_id_data$identifiers_2012
+
+# prepare pbp data
+pbp <- pbp_data$pbp2012 %>% 
+    arrange(desc(spielzeit_sec )) %>% 
+    arrange(game_nr)
+
+# prepare roster data
+roster <- roster_data$rosters_2012 %>% 
+    type_convert() %>%
+    drop_na(.,Club)
+unique(roster$Club)
+
+id_merge <- bind_cols(id, unique(pbp$game_nr)) %>% 
+    rename(nr = `...3`)
+
+pbp <- merge(pbp,id_merge,
+             by.x = "game_nr",
+             by.y = "nr") %>% 
+    select(-game_nr)
+
+# clean for games which have no files
+pbp <- pbp %>%
+    mutate_at("value", ~replace(., is.na(.), 0)) %>% 
+    filter(value != "Error finding file")
+
+pbp <- filter(pbp,
+              (game_id != 13332 | quarter != 5),
+              (game_id != 13375 | quarter != 5),
+              (game_id != 13521 | quarter != 5),
+              (game_id != 13556 | quarter != 6))
+
+#******************************************************************************#
+# Save cleaned pbp files 2012:
+saveRDS(object = pbp, file = paste0("Data/clean_pbp/pbp_2012",".Rds"))
+
+#******************************************************************************#
+# Clean pbp data 2013: ----
+# prepare game ids
+id <- game_id_data$identifiers_2013
+
+# prepare pbp data
+pbp <- pbp_data$pbp2013 %>% 
+    arrange(desc(spielzeit_sec )) %>% 
+    arrange(game_nr)
+
+# prepare roster data
+roster <- roster_data$rosters_2013 %>% 
+    type_convert() %>%
+    drop_na(.,Club)
+unique(roster$Club)
+
+id_merge <- bind_cols(id, unique(pbp$game_nr)) %>% 
+    rename(nr = `...3`)
+
+pbp <- merge(pbp,id_merge,
+             by.x = "game_nr",
+             by.y = "nr") %>% 
+    select(-game_nr)
+
+# clean for games which have no files
+pbp <- pbp %>%
+    mutate_at("value", ~replace(., is.na(.), 0)) %>% 
+    filter(value != "Error finding file")
+
+#******************************************************************************#
+# Save cleaned pbp files 2013:
+saveRDS(object = pbp, file = paste0("Data/clean_pbp/pbp_2013",".Rds"))
+
+#******************************************************************************#
 # Clean pbp data 2014: ----
 # prepare game ids
 id <- game_id_data$identifiers_2014

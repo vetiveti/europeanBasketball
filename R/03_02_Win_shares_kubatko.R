@@ -4,19 +4,16 @@ cat("\014")
 # remove Environment
 rm(list=ls())
 
-# set working directory
-setwd("~/Uni Tübingen/0. Masterarbeit/7. R/europeanBasketball")
-
 library(tidyverse)
 
 #******************************************************************************#
 # load data----
-player_totals <- readRDS("Data/player_data_totals.Rds") %>% 
+player_totals <- readRDS("data/player_data_totals.Rds") %>% 
     rename(min = min_p) %>%
     filter(min > 0) %>% 
     dplyr::select(-PF_perc)
 
-team_totals <- readRDS("Data/team_data_totals.Rds")
+team_totals <- readRDS("data/team_data_totals.Rds")
 
 #******************************************************************************#
 
@@ -70,6 +67,7 @@ totposs_t <- tot_poss %>%
     group_by(team,year) %>% 
     mutate(tot_poss_t = sum(TotPoss)) %>% 
     select(player,team,year,tot_poss_t,qAST,min_p)
+
 #******************************************************************************#
 # Individual Points Produced:----
 PTS_prod <- tot_poss %>% 
@@ -171,7 +169,7 @@ sum(Win_Shares$win_shares)
 
 #******************************************************************************#
 # save final win shares in data frame: ----
-saveRDS(object = Win_Shares, file = paste0("Data/estimates/win_shares.Rds"))
+saveRDS(object = Win_Shares, file = paste0("data/estimates/win_shares.Rds"))
 
 attach(oRTG)
 mean((orb_t / Team_Scoring_Poss) * ORB_t_Weight * Team_Play_pct)
